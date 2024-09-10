@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/Mrs4s/MiraiGo/client/internal/auth"
 	"math/rand"
 	"time"
 
@@ -168,7 +169,11 @@ func (c *QQClient) buildQRCodeFetchRequestPacket(size, margin, ecLevel uint32) (
 				w.Write(tlv.T1D(c.transport.Version.MiscBitmap))
 				w.Write(tlv.T1F(false, c.Device().OSType, []byte("7.1.2"), []byte("China Mobile GSM"), c.Device().APN, 2))
 				w.Write(tlv.T33(c.Device().Guid))
-				w.Write(tlv.T35(8))
+				if c.transport.Device.Protocol == auth.AndroidWatch {
+					w.Write(tlv.T35(8))
+				} else {
+					w.Write(tlv.T35(3))
+				}
 			})
 			w.WriteByte(0x0)
 			w.WriteUInt16(uint16(len(code2dPacket)) + 4)
