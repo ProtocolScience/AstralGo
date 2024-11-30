@@ -37,29 +37,29 @@ func GenRandomDevice() *DeviceInfo {
 	r := make([]byte, 16)
 	crand.Read(r)
 	const numberRange = "0123456789"
-
+	const hexRange = "0123456789abcdef"
 	var device = &DeviceInfo{
-		Product:      []byte("mirai"),
-		Device:       []byte("mirai"),
-		Board:        []byte("mirai"),
-		Brand:        []byte("mamoe"),
-		Model:        []byte("mirai"),
+		Product:      []byte("astral"),
+		Device:       []byte("astral"),
+		Board:        []byte("astral"),
+		Brand:        []byte("Astral"),
+		Model:        []byte("astral"),
 		Bootloader:   []byte("unknown"),
 		BootId:       []byte("cb886ae2-00b6-4d68-a230-787f111d12c7"),
 		ProcVersion:  []byte("Linux version 3.0.31-cb886ae2 (android-build@xxx.xxx.xxx.xxx.com)"),
 		BaseBand:     EmptyBytes,
 		SimInfo:      []byte("T-Mobile"),
 		OSType:       []byte("android"),
-		MacAddress:   []byte("00:50:56:C0:00:08"),
+		MacAddress:   []byte("00:00:00:00:00:00"),
 		IpAddress:    []byte{10, 0, 1, 3}, // 10.0.1.3
-		WifiBSSID:    []byte("00:50:56:C0:00:08"),
+		WifiBSSID:    []byte("00:00:00:00:00:00"),
 		WifiSSID:     []byte("<unknown ssid>"),
 		IMEI:         "468356291846738",
-		AndroidId:    []byte("MIRAI.123456.001"),
+		AndroidId:    []byte("ASTRAL.123456.001"),
 		APN:          []byte("wifi"),
-		VendorName:   []byte("MIUI"),
-		VendorOSName: []byte("mirai"),
-		Protocol:     AndroidPad,
+		VendorName:   []byte("VIVO"),
+		VendorOSName: []byte("astral"),
+		Protocol:     AndroidWatch,
 		Version: &Version{
 			Incremental: []byte("5891938"),
 			Release:     []byte("10"),
@@ -68,10 +68,11 @@ func GenRandomDevice() *DeviceInfo {
 		},
 	}
 
-	device.Display = []byte("MIRAI." + utils.RandomStringRange(6, numberRange) + ".001")
-	device.FingerPrint = []byte("mamoe/mirai/mirai:10/MIRAI.200122.001/" + utils.RandomStringRange(7, numberRange) + ":user/release-keys")
+	device.Display = []byte("ASTRAL." + utils.RandomStringRange(6, numberRange) + ".001")
+	device.FingerPrint = []byte("Astral/astral/astral:10/ASTRAL.110122.001/" + utils.RandomStringRange(7, numberRange) + ":user/release-keys")
 	device.BootId = binary.GenUUID(r)
-	device.ProcVersion = []byte("Linux version 3.0.31-" + utils.RandomString(8) + " (android-build@xxx.xxx.xxx.xxx.com)")
+	device.ProcVersion = []byte("Linux version 4.0.28-" + utils.RandomString(8) + " (android-build@xxx.xxx.xxx.xxx.com)")
+	device.AndroidId = []byte(utils.RandomStringRange(16, hexRange))
 	crand.Read(r)
 	t := md5.Sum(r)
 	device.IMSIMd5 = t[:]
