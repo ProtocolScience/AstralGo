@@ -139,7 +139,7 @@ func (info *Device) ReadJson(d []byte) error {
 	case 1, 2, 3, 4, 5, 6:
 		info.Protocol = ProtocolType(f.Protocol)
 	default:
-		info.Protocol = AndroidWatch
+		info.Protocol = AndroidPad
 	}
 
 	v := new(OSVersion)
