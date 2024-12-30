@@ -4,16 +4,20 @@
 package pb
 
 type SSOReserveField struct {
-	Flag        int32          `protobuf:"varint,9,opt"`
-	Qimei       string         `protobuf:"bytes,12,opt"`
-	NewconnFlag int32          `protobuf:"varint,14,opt"`
-	Uid         string         `protobuf:"bytes,16,opt"`
-	Imsi        int32          `protobuf:"varint,18,opt"`
-	NetworkType int32          `protobuf:"varint,19,opt"`
-	IpStackType int32          `protobuf:"varint,20,opt"`
-	MessageType int32          `protobuf:"varint,21,opt"`
-	SecInfo     *SsoSecureInfo `protobuf:"bytes,24,opt"`
-	SsoIpOrigin int32          `protobuf:"varint,28,opt"`
+	Flag          int32          `protobuf:"varint,9,opt"`
+	LocaleId      int32          `protobuf:"varint,11,opt"`
+	Qimei         string         `protobuf:"bytes,12,opt"`
+	NewconnFlag   int32          `protobuf:"varint,14,opt"`
+	TraceParent   string         `protobuf:"bytes,15,opt"`
+	Uid           string         `protobuf:"bytes,16,opt"`
+	Imsi          int32          `protobuf:"varint,18,opt"`
+	NetworkType   int32          `protobuf:"varint,19,opt"`
+	IpStackType   int32          `protobuf:"varint,20,opt"`
+	MessageType   int32          `protobuf:"varint,21,opt"`
+	SecInfo       *SsoSecureInfo `protobuf:"bytes,24,opt"`
+	NtCoreVersion int32          `protobuf:"varint,26,opt"`
+	SsoIpOrigin   int32          `protobuf:"varint,28,opt"`
+	_             [0]func()
 }
 
 type SsoSecureInfo struct {

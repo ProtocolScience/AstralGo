@@ -3,6 +3,9 @@ package client
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/Mrs4s/MiraiGo/client/pb/trpc"
+	"github.com/Mrs4s/MiraiGo/internal/proto"
+	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"net/netip"
 	"sort"
@@ -99,7 +102,7 @@ type QQClient struct {
 	UserWantJoinGroupEvent            EventHandle[*UserJoinGroupRequest]
 	NewFriendEvent                    EventHandle[*NewFriendEvent]
 	NewFriendRequestEvent             EventHandle[*NewFriendRequest]
-	DisconnectedEvent                 EventHandle[*ClientDisconnectedEvent]
+	DisconnectedEvent                 EventHandle[*DisconnectedEvent]
 	GroupNotifyEvent                  EventHandle[INotifyEvent]
 	FriendNotifyEvent                 EventHandle[INotifyEvent]
 	MemberSpecialTitleUpdatedEvent    EventHandle[*MemberSpecialTitleUpdatedEvent]
@@ -122,7 +125,9 @@ type QQClient struct {
 	friendSeq              atomic.Int32
 	highwayApplyUpSeq      atomic.Int32
 
-	groupListLock sync.Mutex
+	groupListLock     sync.Mutex
+	RKey              *RKeyMap
+	firstLoginSucceed bool
 }
 
 type QiDianAccountInfo struct {
@@ -147,6 +152,7 @@ func (h *handlerInfo) getParams() network.RequestParams {
 	return h.params
 }
 
+var GlobalRKey *RKeyMap
 var decoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"wtlogin.login":                                decodeLoginResponse,
 	"wtlogin.exchange_emp":                         decodeExchangeEmpResponse,
@@ -192,11 +198,12 @@ func NewClientMd5(uin int64, passwordMd5 [16]byte) *QQClient {
 		sig: &auth.SigInfo{
 			OutPacketSessionID: []byte{0x02, 0xB0, 0x5B, 0x8B},
 		},
-		msgSvcCache:     utils.NewCache[unit](time.Second * 15),
-		transCache:      utils.NewCache[unit](time.Second * 15),
-		onlinePushCache: utils.NewCache[unit](time.Second * 15),
-		alive:           true,
-		highwaySession:  new(highway.Session),
+		msgSvcCache:       utils.NewCache[unit](time.Second * 15),
+		transCache:        utils.NewCache[unit](time.Second * 15),
+		onlinePushCache:   utils.NewCache[unit](time.Second * 15),
+		alive:             true,
+		highwaySession:    new(highway.Session),
+		firstLoginSucceed: false,
 	}
 
 	cli.transport = &network.Transport{Sig: cli.sig}
@@ -246,11 +253,16 @@ func (c *QQClient) Login() (*LoginResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	rsp, err := c.sendAndWait(c.buildLoginPacket())
+	rsp, err := c.PasswordLogin()
 	if err != nil {
 		c.Disconnect()
 		return nil, err
 	}
+	return rsp, err
+}
+
+func (c *QQClient) PasswordLogin() (*LoginResponse, error) {
+	rsp, err := c.sendAndWait(c.buildLoginPacket())
 	l := rsp.(LoginResponse)
 	if l.Success {
 		err = c.init(false)
@@ -378,9 +390,6 @@ func (c *QQClient) RequestSMS() bool {
 }
 
 func (c *QQClient) init(tokenLogin bool) error {
-	if len(c.sig.G) == 0 {
-		c.warning("device lock is disabled. HTTP API may fail.")
-	}
 	c.highwaySession.Uin = strconv.FormatInt(c.Uin, 10)
 	if err := c.registerClient(); err != nil {
 		return errors.Wrap(err, "register error")
@@ -667,7 +676,40 @@ func (c *QQClient) SolveFriendRequest(req *NewFriendRequest, accept bool) {
 	_, pkt := c.buildSystemMsgFriendActionPacket(req.RequestId, req.RequesterUin, accept)
 	_ = c.sendPacket(pkt)
 }
-
+func (c *QQClient) GetRKey() (*RKeyMap, error) {
+	if c.RKey != nil {
+		for _, v := range *c.RKey {
+			if v.ExpireTime < uint64(time.Now().Unix()) {
+				c.RKey = nil
+				log.Warn("rkey expired. refresh...")
+				break
+			}
+		}
+	}
+	if c.RKey == nil {
+		data, err := c.sendAndWait(c.BuildFetchRKeyReq())
+		if err == nil {
+			c.RKey = data.(*RKeyMap)
+		}
+	}
+	if c.RKey == nil {
+		c.RKey = &RKeyMap{
+			message.BusinessGroupImage: &RKeyInfo{
+				RKeyType:   GroupRKey,
+				RKey:       "",
+				ExpireTime: 0,
+				CreateTime: 0,
+			},
+			message.BusinessFriendImage: &RKeyInfo{
+				RKeyType:   FriendRKey,
+				RKey:       "",
+				ExpireTime: 0,
+				CreateTime: 0,
+			},
+		}
+	}
+	return c.RKey, nil
+}
 func (c *QQClient) getSKey() string {
 	if c.sig.SKeyExpiredTime < time.Now().Unix() && len(c.sig.G) > 0 {
 		c.debug("skey expired. refresh...")
@@ -754,11 +796,17 @@ func (c *QQClient) UpdateProfile(profile ProfileDetailUpdate) {
 func (c *QQClient) SetCustomServer(servers []netip.AddrPort) {
 	c.servers = append(servers, c.servers...)
 }
+func (c *QQClient) unRegisterClient() error {
+	_, err := c.sendAndWait(c.buildClientUnRegisterPacket())
+	//	log.Infof("Unregister: %s", resp.(*trpc.UnRegisterResp).Message.Unwrap())
+	return err
+}
 
 func (c *QQClient) registerClient() error {
 	_, err := c.sendAndWait(c.buildClientRegisterPacket())
 	if err == nil {
 		c.Online.Store(true)
+		c.firstLoginSucceed = true
 	}
 	return err
 }
@@ -796,7 +844,8 @@ func (c *QQClient) doHeartbeat() {
 	c.heartbeatEnabled = true
 	times := 0
 	for c.Online.Load() {
-		time.Sleep(time.Second * 30)
+		time.Sleep(time.Second * 60)
+		//time.Sleep(time.Second * 1)
 		seq := c.nextSeq()
 		req := network.Request{
 			Type:        network.RequestTypeLogin,
@@ -812,8 +861,24 @@ func (c *QQClient) doHeartbeat() {
 			continue
 		}
 		times++
-		if times >= 7 {
-			_ = c.registerClient()
+		if times == 4 {
+			data, _ := proto.Marshal(&trpc.SsoHeartBeat{
+				Unknown1: proto.Int32(1),
+				Unknown2: &trpc.SsoHeartBeat_Unknown2{
+					Unknown1: proto.Int32(1),
+				},
+				Unknown3: proto.Int32(149),
+				Time:     proto.Int64(time.Now().Unix()),
+			})
+			_, err = c.sendAndWait(
+				c.uniPacket("trpc.qq_new_tech.status_svc.StatusService.SsoHeartBeat", data),
+			)
+			if err != nil {
+				log.Errorf("SsoHeartBeat Failed: %v", err)
+				_ = c.unRegisterClient()
+				_ = c.registerClient()
+			}
+		} else if times >= 5 {
 			times = 0
 		}
 	}

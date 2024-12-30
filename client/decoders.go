@@ -199,21 +199,13 @@ func decodeLoginResponse(c *QQClient, pkt *network.Packet) (any, error) {
 	return nil, errors.Errorf("unknown login response: %v", t) // ?
 }
 
-// StatSvc.register
-func decodeClientRegisterResponse(c *QQClient, pkt *network.Packet) (any, error) {
-	request := &jce.RequestPacket{}
-	request.ReadFrom(jce.NewJceReader(pkt.Payload))
-	data := &jce.RequestDataVersion2{}
-	data.ReadFrom(jce.NewJceReader(request.SBuffer))
-	svcRsp := &jce.SvcRespRegister{}
-	svcRsp.ReadFrom(jce.NewJceReader(data.Map["SvcRespRegister"]["QQService.SvcRespRegister"][1:]))
-	if svcRsp.Result != "" || svcRsp.ReplyCode != 0 {
-		if svcRsp.Result != "" {
-			c.error("reg error: %v", svcRsp.Result)
-		}
-		return nil, errors.New("reg failed")
-	}
-	return nil, nil
+type ServerResponseError struct {
+	Code    int
+	Message string
+}
+
+func (e ServerResponseError) Error() string {
+	return e.Message
 }
 
 // wtlogin.exchange_emp
@@ -222,20 +214,30 @@ func decodeExchangeEmpResponse(c *QQClient, pkt *network.Packet) (any, error) {
 	cmd := reader.ReadUInt16()
 	t := reader.ReadByte()
 	reader.ReadUInt16()
+
 	m, err := tlv.NewDecoder(2, 2).DecodeRecordMap(reader.ReadAvailable())
 	if err != nil {
-		return nil, err
+		return nil, &ServerResponseError{
+			Code:    1001,
+			Message: "error decoding record map",
+		}
 	}
+
 	if t != 0 {
-		return nil, errors.Errorf("exchange_emp failed: %v", t)
+		return nil, &ServerResponseError{
+			Code:    int(t),
+			Message: fmt.Sprintf("exchange_emp failed with code: %v", t),
+		}
 	}
-	if cmd == 15 {
+
+	switch cmd {
+	case 15:
 		c.decodeT119R(m[0x119])
-	}
-	if cmd == 11 {
+	case 11:
 		h := md5.Sum(c.sig.D2Key)
 		c.decodeT119(m[0x119], h[:])
 	}
+
 	return nil, nil
 }
 
@@ -818,7 +820,7 @@ func decodeForceOfflinePacket(c *QQClient, pkt *network.Packet) (any, error) {
 	r := jce.NewJceReader(data.Map["req_PushForceOffline"]["PushNotifyPack.RequestPushForceOffline"][1:])
 	tips := r.ReadString(2)
 	c.Disconnect()
-	go c.DisconnectedEvent.dispatch(c, &ClientDisconnectedEvent{Message: tips})
+	go c.DisconnectedEvent.dispatch(c, &DisconnectedEvent{Message: tips, Reconnection: false})
 	return nil, nil
 }
 
@@ -827,7 +829,7 @@ func decodeMSFOfflinePacket(c *QQClient, _ *network.Packet) (any, error) {
 	// c.lastLostMsg = "服务器端强制下线."
 	c.Disconnect()
 	// 这个decoder不能消耗太多时间, event另起线程处理
-	go c.DisconnectedEvent.dispatch(c, &ClientDisconnectedEvent{Message: "服务端强制下线."})
+	go c.DisconnectedEvent.dispatch(c, &DisconnectedEvent{Message: "服务端强制下线.", Reconnection: false})
 	return nil, nil
 }
 

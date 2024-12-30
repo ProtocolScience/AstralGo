@@ -1,8 +1,11 @@
 package message
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/Mrs4s/MiraiGo/client/pb/nt/media"
+	log "github.com/sirupsen/logrus"
 	"reflect"
 	"strconv"
 	"strings"
@@ -58,6 +61,7 @@ type (
 
 	Sender struct {
 		Uin           int64
+		UID           string
 		Nickname      string
 		CardName      string
 		AnonymousInfo *AnonymousInfo
@@ -103,6 +107,15 @@ const (
 	Video                       // 视频
 	LightApp                    // 轻应用
 	RedBag                      // 红包
+)
+
+const (
+	BusinessGroupImage  = 20
+	BusinessFriendImage = 10
+	BusinessGroupVideo  = 21
+	BusinessFriendVideo = 11
+	BusinessGroupAudio  = 22
+	BusinessFriendAudio = 12
 )
 
 func (s *Sender) IsAnonymous() bool {
@@ -672,6 +685,67 @@ func ParseMessageElems(elems []*msg.Elem) []IMessageElement {
 				}
 				return []IMessageElement{sticker} // sticker 永远为单独消息
 			case 48:
+				/*
+					a, b := proto.Marshal(elem.CommonElem)
+					if b == nil {
+						log.Warn("Rev = " + hex.EncodeToString(a))
+					}*/
+				businessType := elem.CommonElem.BusinessType.Unwrap()
+				extra := media.MsgInfo{}
+				err := proto.Unmarshal(elem.CommonElem.PbElem, &extra)
+				if err != nil {
+					continue
+				}
+				index := extra.MsgInfoBody[0].Index
+				switch businessType {
+				case BusinessFriendImage, BusinessGroupImage: // img
+					/*
+						res = append(res, &ImageElement{
+							ImageID:  index.Info.FileName,
+							FileUUID: index.FileUuid,
+							SubType:  int32(extra.ExtBizInfo.Pic.BizType),
+							Summary:  utils.Ternary(extra.ExtBizInfo.Pic.TextSummary == "", "[图片]", extra.ExtBizInfo.Pic.TextSummary),
+							Md5:      utils.MustParseHexStr(index.Info.FileHash),
+							Sha1:     utils.MustParseHexStr(index.Info.FileSha1),
+							Width:    index.Info.Width,
+							Height:   index.Info.Height,
+							Size:     index.Info.FileSize,
+							MsgInfo:  extra,
+						})*/
+					//rkey, err := cli.GetRKey()
+					url := fmt.Sprintf("https://%s%s&spec=0",
+						extra.MsgInfoBody[0].Picture.Domain,
+						extra.MsgInfoBody[0].Picture.UrlPath,
+						//(*rkey)[BusinessFriendImage].RKey,
+					)
+					//url :=
+					hash, err := hex.DecodeString(index.Info.FileHash)
+					if err == nil {
+						if businessType == BusinessFriendImage {
+							res = append(res, &FriendImageElement{
+								ImageId: index.Info.FileName,
+								Size:    int32(index.Info.FileSize),
+								Url:     url,
+								Md5:     hash,
+								Width:   int32(index.Info.Width),
+								Height:  int32(index.Info.Height),
+							})
+						} else {
+							res = append(res, &GroupImageElement{
+								ImageId: index.Info.FileName,
+								Size:    int32(index.Info.FileSize),
+								Url:     url,
+								Md5:     hash,
+								Width:   int32(index.Info.Width),
+								Height:  int32(index.Info.Height),
+							})
+						}
+						newImg = true
+					}
+				default:
+					log.Warnf("Unknown businessType = %d", businessType)
+				}
+				/* 旧的解析方式
 				img := &msg.PbMultiMediaElement{}
 				_ = proto.Unmarshal(elem.CommonElem.PbElem, img)
 				domain := img.Elem1.Data.Domain.Unwrap()
@@ -698,7 +772,7 @@ func ParseMessageElems(elems []*msg.Elem) []IMessageElement {
 						Md5:     img.Elem1.Meta.Data.PicMd5,
 					})
 					newImg = true
-				}
+				}*/
 			}
 
 		}

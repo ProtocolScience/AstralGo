@@ -2,8 +2,11 @@ package client
 
 import (
 	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"github.com/Mrs4s/MiraiGo/client/internal/auth"
+	"github.com/Mrs4s/MiraiGo/client/pb/nt/media"
+	"github.com/Mrs4s/MiraiGo/client/pb/trpc"
 	"math/rand"
 	"time"
 
@@ -26,6 +29,31 @@ var (
 	syncConst1 = rand.Int63()
 	syncConst2 = rand.Int63()
 )
+
+func (c *QQClient) BuildFetchRKeyReq() (uint16, []byte) {
+	body := &media.NTV2RichMediaReq{
+		ReqHead: &media.MultiMediaReqHead{
+			Common: &media.CommonHead{
+				RequestId: 1,
+				Command:   202,
+			},
+			Scene: &media.SceneInfo{
+				RequestType:  2,
+				BusinessType: 1,
+				SceneType:    0,
+			},
+			Client: &media.ClientMeta{
+				AgentType: 2,
+			},
+		},
+		DownloadRKey: &media.DownloadRKeyReq{
+			Types: []int32{10, 20, 2},
+		},
+	}
+	b, _ := proto.Marshal(body)
+	payload := c.packOIDBPackage(0x9067, 202, b)
+	return c.uniPacket("OidbSvcTrpcTcp.0x9067_202", payload)
+}
 
 func buildCode2DRequestPacket(seq uint32, j uint64, cmd uint16, bodyFunc func(writer *binary.Writer)) []byte {
 	return binary.NewWriterF(func(w *binary.Writer) {
@@ -570,57 +598,98 @@ func (c *QQClient) buildRequestChangeSigPacket(changeD2 bool) (uint16, []byte) {
 	return seq, c.transport.PackPacket(&req2)
 }
 
-// StatSvc.register
-func (c *QQClient) buildClientRegisterPacket() (uint16, []byte) {
+func (c *QQClient) buildClientUnRegisterPacket() (uint16, []byte) {
 	seq := c.nextSeq()
-	svc := &jce.SvcReqRegister{
-		ConnType:     0,
-		Uin:          c.Uin,
-		Bid:          1 | 2 | 4,
-		Status:       11,
-		KickPC:       0,
-		KickWeak:     0,
-		IOSVersion:   int64(c.Device().Version.SDK),
-		NetType:      1,
-		RegType:      0,
-		Guid:         c.Device().Guid,
-		IsSetStatus:  0,
-		LocaleId:     2052,
-		DevName:      string(c.Device().Model),
-		DevType:      string(c.Device().Model),
-		OSVer:        string(c.Device().Version.Release),
-		OpenPush:     1,
-		LargeSeq:     1551,
-		OldSSOIp:     0,
-		NewSSOIp:     31806887127679168,
-		ChannelNo:    "",
-		CPID:         0,
-		VendorName:   string(c.Device().VendorName),
-		VendorOSName: string(c.Device().VendorOSName),
-		B769:         []byte{0x0A, 0x04, 0x08, 0x2E, 0x10, 0x00, 0x0A, 0x05, 0x08, 0x9B, 0x02, 0x10, 0x00},
-		SetMute:      0,
+	req := &trpc.UnRegister{
+		Field1: proto.Int32(0),
+		Field3: proto.Int32(0),
+		DeviceInfo: &trpc.UnRegister_DeviceInfo{
+			Brand:          proto.String(string(c.Device().Brand)),
+			BrandModel:     proto.String(string(c.Device().Brand) + "-" + string(c.Device().Model)),
+			Device:         proto.String(string(c.Device().Device)),
+			ProductUser:    proto.String(string(c.Device().FingerPrint)),
+			VersionRelease: proto.String(string(c.Device().Version.Release)),
+		},
 	}
-	b := append([]byte{0x0A}, svc.ToBytes()...)
-	b = append(b, 0x0B)
-	buf := &jce.RequestDataVersion3{
-		Map: map[string][]byte{"SvcReqRegister": b},
-	}
-	pkt := &jce.RequestPacket{
-		IVersion:     3,
-		SServantName: "PushService",
-		SFuncName:    "SvcReqRegister",
-		SBuffer:      buf.ToBytes(),
-		Context:      make(map[string]string),
-		Status:       make(map[string]string),
-	}
-
+	payload, _ := proto.Marshal(req)
 	r := network.Request{
 		Type:        network.RequestTypeLogin,
 		EncryptType: network.EncryptTypeD2Key,
 		SequenceID:  int32(seq),
 		Uin:         c.Uin,
-		CommandName: "StatSvc.register",
-		Body:        pkt.ToBytes(),
+		CommandName: "trpc.qq_new_tech.status_svc.StatusService.UnRegister",
+		Body:        payload,
+	}
+	return seq, c.transport.PackPacket(&r)
+}
+func (c *QQClient) buildClientRegisterPacket() (uint16, []byte) {
+	seq := c.nextSeq()
+	req := &trpc.SsoInfoSyncReqBody{
+		Tag:                  proto.Int32(735),
+		RandomSeq:            proto.Int32(rand.Int31()),
+		ReqType:              proto.Int32(2),
+		LastGroupMessageTime: proto.Int32(0),
+		SsoInfoSyncC2C: &trpc.SsoInfoSyncReqBody_MessageTime{
+			Unknown_1: &trpc.SsoInfoSyncReqBody_MessageTime_UnknownTime{
+				Time: proto.Int32(0),
+			},
+			LastPrivateMessageTime: proto.Int32(0),
+			Unknown_3: &trpc.SsoInfoSyncReqBody_MessageTime_UnknownTime{
+				Time: proto.Int32(0),
+			},
+		},
+		MetaDataList: &trpc.SsoInfoSyncReqBody_MetaDataList{
+			LastDoData: []*trpc.SsoInfoSyncReqBody_MetaDataList_MetaData{
+				{
+					Type:  proto.Int32(46),
+					Value: proto.Int32(0),
+				},
+				{
+					Type:  proto.Int32(283),
+					Value: proto.Int32(0),
+				},
+			},
+		},
+		DeviceInfo: &trpc.SsoInfoSyncReqBody_DeviceInfo{
+			ApkCode:   proto.String("20970"),
+			Guid:      proto.String(hex.EncodeToString(c.Device().Guid)),
+			Unknown_2: proto.Int32(0),
+			Unknown_4: proto.Int32(1),
+			Unknown_5: proto.Int32(2052),
+			PhoneInfo: &trpc.SsoInfoSyncReqBody_DeviceInfo_PhoneInfo{
+				Brand:          proto.String(string(c.Device().Brand)),
+				BrandAndModel:  proto.String(string(c.Device().Brand) + "-" + string(c.Device().Model)),
+				Device:         proto.String(string(c.Device().Device)),
+				Linux:          proto.String(string(c.Device().ProcVersion)),
+				VersionRelease: proto.String(string(c.Device().Version.Release)),
+			},
+			Unknown_7: proto.Int32(0),
+			Unknown_8: proto.Int32(5),
+			ReLogin:   proto.Int32(1),
+			Unknown_10: &trpc.SsoInfoSyncReqBody_DeviceInfo_Unknown_10{
+				Unknown_1: proto.Int32(1),
+				Unknown_2: proto.Int32(1),
+			},
+			Unknown_11: proto.Int32(0),
+		},
+		Unknown10: &trpc.SsoInfoSyncReqBody_Unknown10{
+			Unknown_1: proto.Int32(0),
+			Unknown_2: proto.Int32(1),
+		},
+		Unknown11: &trpc.SsoInfoSyncReqBody_Unknown11{
+			Unknown_1: proto.Int32(0),
+			Unknown_2: proto.Int32(1),
+			Unknown_3: proto.Int32(0),
+		},
+	}
+	payload, _ := proto.Marshal(req)
+	r := network.Request{
+		Type:        network.RequestTypeLogin,
+		EncryptType: network.EncryptTypeD2Key,
+		SequenceID:  int32(seq),
+		Uin:         c.Uin,
+		CommandName: "trpc.msg.register_proxy.RegisterProxy.SsoInfoSync",
+		Body:        payload,
 	}
 	return seq, c.transport.PackPacket(&r)
 }

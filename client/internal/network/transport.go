@@ -1,6 +1,8 @@
 package network
 
 import (
+	"github.com/Mrs4s/MiraiGo/utils"
+	log "github.com/sirupsen/logrus"
 	"strconv"
 	"strings"
 
@@ -137,11 +139,44 @@ func (t *Transport) packBody(req *Request, w *binary.Writer) {
 		w.WriteUInt16(uint16(len(t.Sig.Ksid)) + 2)
 		w.Write(t.Sig.Ksid)
 	}
+
+	var sign []byte
+	var token []byte
+	var extra []byte
 	if strings.Contains(WhiteListCommands, req.CommandName) {
-		secSign := t.PackSecSign(req)
-		w.WriteUInt32(uint32(len(secSign) + 4))
-		w.Write(secSign)
+		var err error
+		sign, extra, token, err = t.PackSecSign(req)
+		if err != nil {
+			log.Error("pack sec sign err:", err)
+		}
 	}
+	uidCache := utils.GlobalCaches.GetByUIN(req.Uin)
+	m := &pb.SSOReserveField{
+		Flag:          1,
+		Qimei:         t.Device.QImei36,
+		NewconnFlag:   0,
+		Uid:           uidCache.UID,
+		Imsi:          0,
+		NetworkType:   1,
+		IpStackType:   1,
+		MessageType:   0,
+		LocaleId:      2052,
+		NtCoreVersion: 100,
+		TraceParent:   "00-0000000000000000000000000000000-0000000000000000-00",
+		SecInfo: &pb.SsoSecureInfo{
+			SecSig:         sign,
+			SecDeviceToken: token,
+			SecExtra:       extra,
+		},
+		SsoIpOrigin: 3,
+	}
+	secSign, err := proto.Marshal(m)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to marshal protobuf SSOReserveField"))
+	}
+
+	w.WriteUInt32(uint32(len(secSign) + 4))
+	w.Write(secSign)
 
 	w.WriteUInt32(0x04 + uint32(len(t.Device.QImei16)))
 	w.Write([]byte(t.Device.QImei16))
@@ -152,35 +187,15 @@ func (t *Transport) packBody(req *Request, w *binary.Writer) {
 	w.Write(req.Body)
 }
 
-func (t *Transport) PackSecSign(req *Request) []byte {
+func (t *Transport) PackSecSign(req *Request) ([]byte, []byte, []byte, error) {
 	if wrapper.FekitGetSign == nil {
-		return []byte{}
+		return nil, nil, nil, errors.New("wrapper.FekitGetSign == nil in PackSecSign")
 	}
 	sign, extra, token, err := wrapper.FekitGetSign(uint64(req.SequenceID), strconv.FormatInt(req.Uin, 10), req.CommandName, t.Version.QUA, req.Body)
 	if err != nil {
-		return []byte{}
+		return nil, nil, nil, err
 	}
-	m := &pb.SSOReserveField{
-		Flag:        0,
-		Qimei:       t.Device.QImei16,
-		NewconnFlag: 0,
-		Uid:         strconv.FormatInt(req.Uin, 10),
-		Imsi:        0,
-		NetworkType: 1,
-		IpStackType: 1,
-		MessageType: 0,
-		SecInfo: &pb.SsoSecureInfo{
-			SecSig:         sign,
-			SecDeviceToken: token,
-			SecExtra:       extra,
-		},
-		SsoIpOrigin: 0,
-	}
-	data, err := proto.Marshal(m)
-	if err != nil {
-		panic(errors.Wrap(err, "failed to unmarshal protobuf SSOReserveField"))
-	}
-	return data
+	return sign, extra, token, nil
 }
 
 // PackPacket packs a packet.

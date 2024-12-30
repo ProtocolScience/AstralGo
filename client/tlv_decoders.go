@@ -3,6 +3,8 @@ package client
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/Mrs4s/MiraiGo/client/pb/cmd0x543"
+	"github.com/Mrs4s/MiraiGo/internal/proto"
 	"time"
 
 	"github.com/Mrs4s/MiraiGo/client/internal/tlv"
@@ -58,7 +60,7 @@ func (c *QQClient) decodeT119(data, ek []byte) {
 		// noPicSig []byte
 		// ctime           = time.Now().Unix()
 		// etime           = ctime + 2160000
-		psKeyMap    map[string][]byte
+		//psKeyMap    map[string][]byte
 		pt4TokenMap map[string][]byte
 	)
 
@@ -86,7 +88,7 @@ func (c *QQClient) decodeT119(data, ek []byte) {
 		}
 	*/
 	if t512, ok := m[0x512]; ok {
-		psKeyMap, pt4TokenMap = readT512(t512)
+		_, pt4TokenMap = readT512(t512) //psKeyMap,pt4TokenMap
 	}
 	c.oicq.WtSessionTicketKey = utils.Select(m[0x134], c.oicq.WtSessionTicketKey)
 
@@ -106,9 +108,15 @@ func (c *QQClient) decodeT119(data, ek []byte) {
 	s.D2 = m[0x143]
 	s.D2Key = m[0x305]
 	s.DeviceToken = m[0x322]
-
-	s.PsKeyMap = psKeyMap
 	s.Pt4TokenMap = pt4TokenMap
+	rsp := cmd0x543.Body{}
+
+	if m.Exists(0x543) {
+		if err := proto.Unmarshal(m[0x543], &rsp); err == nil {
+			utils.GlobalCaches.Add(rsp.Data.Account.Uid, c.Uin)
+		}
+	}
+
 	if len(c.sig.EncryptedA1) > 51+16 {
 		data, cl := binary.OpenWriterF(func(w *binary.Writer) {
 			w.Write(c.PasswordMd5[:])

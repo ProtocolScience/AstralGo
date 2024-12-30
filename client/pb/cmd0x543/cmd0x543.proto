@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option go_package = "github.com/Mrs4s/MiraiGo/client/pb/cmd0x543";
+
+
+message Body {
+  Data data = 9;
+}
+
+message Data {
+  Account account = 11;
+}
+
+message Account {
+  string uid = 1;
+}

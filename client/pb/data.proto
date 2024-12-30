@@ -4,14 +4,17 @@ option go_package = "github.com/Mrs4s/MiraiGo/client/pb";
 
 message SSOReserveField {
   int32 flag = 9;
+  int32 localeId = 11;
   string qimei = 12;
   int32 newconn_flag = 14;
+  string traceParent = 15;
   string uid = 16;
   int32 imsi = 18;
   int32 network_type = 19;
   int32 ip_stack_type = 20;
   int32 message_type = 21;
   SsoSecureInfo sec_info = 24;
+  int32 ntCoreVersion = 26;
   int32 sso_ip_origin = 28;
 }
 

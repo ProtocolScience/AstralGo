@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/hex"
 	"net"
 	"net/netip"
 	"runtime/debug"
@@ -191,21 +192,24 @@ func (c *QQClient) quickReconnect() {
 	time.Sleep(time.Millisecond * 200)
 	if err := c.connect(); err != nil {
 		c.error("connect server error: %v", err)
-		c.DisconnectedEvent.dispatch(c, &ClientDisconnectedEvent{Message: "quick reconnect failed"})
+		c.DisconnectedEvent.dispatch(c, &DisconnectedEvent{Message: "quick reconnect failed", Reconnection: true})
 		return
 	}
 	if err := c.registerClient(); err != nil {
 		c.error("register client failed: %v", err)
 		c.Disconnect()
-		c.DisconnectedEvent.dispatch(c, &ClientDisconnectedEvent{Message: "register error"})
+		c.DisconnectedEvent.dispatch(c, &DisconnectedEvent{Message: "register error", Reconnection: true})
 		return
 	}
 }
 
 // Disconnect 中断连接, 不释放资源
 func (c *QQClient) Disconnect() {
-	c.Online.Store(false)
-	c.TCP.Close()
+	_ = c.unRegisterClient()
+	if c.firstLoginSucceed {
+		c.TCP.Close()
+		c.Online.Store(false)
+	}
 }
 
 // sendAndWait 向服务器发送一个数据包, 并等待返回
@@ -220,7 +224,6 @@ func (c *QQClient) sendAndWait(seq uint16, pkt []byte, params ...network.Request
 	if len(params) != 0 {
 		p = params[0]
 	}
-
 	c.handlers.Store(seq, &handlerInfo{fun: func(i any, err error) {
 		ch <- T{
 			Response: i,
@@ -331,13 +334,13 @@ func (c *QQClient) unexpectedDisconnect(_ *network.TCPClient, e error) {
 	c.Online.Store(false)
 	if err := c.connect(); err != nil {
 		c.error("connect server error: %v", err)
-		c.DisconnectedEvent.dispatch(c, &ClientDisconnectedEvent{Message: "connection dropped by server."})
+		c.DisconnectedEvent.dispatch(c, &DisconnectedEvent{Message: "connection dropped by server.", Reconnection: true})
 		return
 	}
 	if err := c.registerClient(); err != nil {
 		c.error("register client failed: %v", err)
 		c.Disconnect()
-		c.DisconnectedEvent.dispatch(c, &ClientDisconnectedEvent{Message: "register error"})
+		c.DisconnectedEvent.dispatch(c, &DisconnectedEvent{Message: "register error", Reconnection: true})
 		return
 	}
 }
@@ -366,7 +369,7 @@ func (c *QQClient) netLoop() {
 			c.error("parse incoming packet error: %v", err)
 			if errors.Is(err, network.ErrSessionExpired) || errors.Is(err, network.ErrPacketDropped) {
 				c.Disconnect()
-				go c.DisconnectedEvent.dispatch(c, &ClientDisconnectedEvent{Message: "session expired"})
+				go c.DisconnectedEvent.dispatch(c, &DisconnectedEvent{Message: "session expired", Reconnection: true})
 				continue
 			}
 			errCount++
@@ -378,7 +381,7 @@ func (c *QQClient) netLoop() {
 		if resp.EncryptType == network.EncryptTypeEmptyKey {
 			m, err := c.oicq.Unmarshal(resp.Body)
 			if err != nil {
-				c.error("decrypt payload error: %v", err)
+				c.error("decrypt payload error: %v, Data: %s, Cmd: %s", err, hex.EncodeToString(resp.Body), resp.CommandName)
 				if errors.Is(err, oicq.ErrUnknownFlag) {
 					go c.quickReconnect()
 				}

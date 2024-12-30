@@ -1,0 +1,109 @@
+syntax = "proto2";
+
+option go_package = "github.com/Mrs4s/MiraiGo/client/trpc";
+
+message SsoHeartBeat {
+  optional int32 unknown1 = 1;
+  optional Unknown2 unknown2 = 2;
+  optional int32 unknown3 = 3;
+  optional int64 time = 4;
+  message Unknown2 {
+    optional int32 unknown1 = 1;
+  }
+}
+
+message UnRegister {
+  optional int32 field1 = 1;
+  optional int32 field3 = 3;
+  optional DeviceInfo deviceInfo = 2;
+
+  message DeviceInfo {
+    optional string brandModel = 1;
+    optional string device = 2;
+    optional string versionRelease = 3;
+    optional string brand = 4;
+    optional string productUser = 5;
+  }
+}
+message UnRegisterResp {
+  optional string message = 2;
+}
+
+message NTKickEvent {
+  optional int64 uin = 1;
+  optional string tips = 3;
+  optional string title = 2;
+}
+
+message SsoInfoSyncReqBody {
+  optional int32 tag = 1; //735
+  optional int32 randomSeq = 2;
+  optional int32 ReqType = 4; //2
+  optional int32 lastGroupMessageTime = 5;
+  optional MessageTime ssoInfoSyncC2C = 6;
+  optional MetaDataList metaDataList = 8;
+  optional DeviceInfo deviceInfo = 9;
+  optional Unknown10 unknown10 = 10;
+  optional Unknown11 unknown11 = 11;
+
+
+  message MessageTime{
+    optional UnknownTime unknown_1 = 1;
+    optional int32 lastPrivateMessageTime = 2;
+    optional UnknownTime unknown_3 = 3;
+    message UnknownTime{
+      optional int32 time = 1; //can set 0
+    }
+  }
+
+  message MetaDataList{
+    message MetaData{
+      optional int32 type = 1;
+      optional int32 value = 2;
+    }
+    // type = 46, value=lastOnlineTime
+    // type = 283, value=0
+    repeated MetaData lastDoData = 1;
+  }
+  message DeviceInfo {
+    optional string guid = 1;
+    optional int32 unknown_2 = 2; // 0
+    optional string apkCode = 3;
+    optional int32 unknown_4 = 4; // 1
+    optional int32 unknown_5 = 5; //2052
+    optional PhoneInfo phoneInfo = 6;
+    message PhoneInfo {
+      optional string brandAndModel = 1;
+      optional string device = 2;
+      optional string versionRelease = 3;
+      optional string brand = 4;
+      optional string linux = 5;
+    }
+    optional int32 unknown_7 = 7; // 0
+    optional int32 unknown_8 = 8; // 5
+    // 0代表保守上线(已经有另一个设备登录就弃权)，1代表激进上线(已经有另一个设备就踹掉对方)
+    optional int32 re_login = 9;
+    optional Unknown_10 unknown_10 = 10;
+    message Unknown_10{
+      optional int32 unknown_1 = 1; // 1
+      optional int32 unknown_2 = 2; // 1
+    }
+    optional int32 unknown_11 = 11; // 0
+  }
+  message Unknown10{
+    optional int32 unknown_1 = 1; // 0
+    optional int32 unknown_2 = 2; // 1
+  }
+  message Unknown11{
+    optional int32 unknown_1 = 1; // 0
+    optional int32 unknown_2 = 2; // 1
+    optional int32 unknown_3 = 3; // 0
+  }
+}
+
+message SsoInfoSyncRespBody {
+  optional Data retData = 7;
+  message Data {
+    optional string message = 2;
+  }
+}

@@ -164,8 +164,9 @@ type (
 		NewPermission MemberPermission
 	}
 
-	ClientDisconnectedEvent struct {
-		Message string
+	DisconnectedEvent struct {
+		Message      string
+		Reconnection bool
 	}
 
 	NewFriendRequest struct {
@@ -307,6 +308,23 @@ type (
 	// unit is an alias for struct{}, like `()` in rust
 	unit = struct{}
 )
+
+type (
+	RKeyType uint32
+	RKeyMap  map[RKeyType]*RKeyInfo
+)
+
+const (
+	FriendRKey RKeyType = 10
+	GroupRKey  RKeyType = 20
+)
+
+type RKeyInfo struct {
+	RKeyType   RKeyType
+	RKey       string
+	CreateTime uint64
+	ExpireTime uint64
+}
 
 //go:generate stringer -type=LoginError
 const (
