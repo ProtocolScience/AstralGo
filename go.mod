@@ -23,5 +23,3 @@ require (
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/ProtocolScience/AstralGo => github.com/ProtocolScience/AstralGo v0.0.0-20241230224553-dd09c3f40279
