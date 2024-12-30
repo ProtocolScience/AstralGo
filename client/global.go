@@ -328,10 +328,10 @@ func (c *QQClient) packOIDBPackage(cmd, serviceType int32, body []byte) []byte {
 	pkg := getOidbSSOPackage()
 	defer oidbSSOPool.Put(pkg)
 	*pkg = oidb.OIDBSSOPkg{
-		Command:       cmd,
-		ServiceType:   serviceType,
-		Bodybuffer:    body,
-		ClientVersion: "Android " + c.version().SortVersionName,
+		Command:     cmd,
+		ServiceType: serviceType,
+		Bodybuffer:  body,
+		//ClientVersion: "Android " + c.version().SortVersionName,
 	}
 	r, _ := proto.Marshal(pkg)
 	return r

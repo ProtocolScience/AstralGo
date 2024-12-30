@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+option go_package = "github.com/Mrs4s/MiraiGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFD4_1";
+
+// Request message
+message Request {
+  int32 count = 2;
+  int32 field7 = 7;
+  bytes continueToken = 5;
+  int64 field6 = 6;
+  repeated Body body = 10001;
+  repeated int64 field10002 = 10002;
+  int64 field10003 = 10003;
+  int32 mode = 4;
+}
+
+// Body message
+message Body {
+  int64 type = 1;
+  OidbNumber number = 2;
+}
+
+// OidbNumber message
+message OidbNumber {
+  repeated int64 numbers = 1;
+}
+
+// Response message
+message Response {
+  int64 displayFriendCount = 3;
+  int64 timestamp = 6;
+  int64 selfUin = 7;
+  bytes continueToken = 2;
+  repeated OidbFriend friends = 101;
+  repeated OidbGroup groups = 102;
+}
+
+// OidbFriend message
+message OidbFriend {
+  string uid = 1;
+  int64 uin = 3;
+  repeated FriendAdditional additional = 10001;
+}
+
+// ContinueToken message
+message ContinueToken {
+  int64 uin = 1;
+}
+
+// OidbGroup message
+message OidbGroup {
+  string name = 2;
+  int32 id = 1;
+}
+
+// FriendAdditional message
+message FriendAdditional {
+  int64 type = 1;
+  FriendLayer1 layer1 = 2;
+}
+
+// FriendLayer1 message
+message FriendLayer1 {
+  repeated FriendProperty properties = 2;
+}
+
+// FriendProperty message
+message FriendProperty {
+  int64 code = 1;
+  string value = 2;
+}

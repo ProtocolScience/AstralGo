@@ -7,6 +7,31 @@ import (
 	proto "github.com/RomiChan/protobuf/proto"
 )
 
+// trpc.msg.register_proxy.RegisterProxy.PushParams
+type TrpcPushParams struct {
+	OnlineDevices       []*OnlineDevice      `protobuf:"bytes,4,rep"`
+	GuildParams         *GuildParams         `protobuf:"bytes,6,opt"`
+	ErrMsg              proto.Option[string] `protobuf:"bytes,7,opt"`
+	GroupMsgStorageTime proto.Option[uint32] `protobuf:"varint,9,opt"`
+}
+
+type GuildParams struct {
+	GuildFlag       proto.Option[uint32] `protobuf:"varint,1,opt"`
+	GuildSwitchFlag proto.Option[uint32] `protobuf:"varint,2,opt"`
+	_               [0]func()
+}
+
+type OnlineDevice struct {
+	InstId        proto.Option[uint32] `protobuf:"varint,1,opt"`
+	ClientType    proto.Option[uint32] `protobuf:"varint,2,opt"`
+	State         proto.Option[uint32] `protobuf:"varint,3,opt"`
+	PlatId        proto.Option[uint32] `protobuf:"varint,4,opt"`
+	PlatType      proto.Option[string] `protobuf:"bytes,5,opt"`
+	NewClientType proto.Option[uint32] `protobuf:"varint,6,opt"`
+	DeviceName    proto.Option[string] `protobuf:"bytes,7,opt"`
+	_             [0]func()
+}
+
 type SsoHeartBeat struct {
 	Unknown1 proto.Option[int32]    `protobuf:"varint,1,opt"`
 	Unknown2 *SsoHeartBeat_Unknown2 `protobuf:"bytes,2,opt"`

@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"github.com/Mrs4s/MiraiGo/client/internal/auth"
 	"github.com/Mrs4s/MiraiGo/client/pb/nt/media"
+	"github.com/Mrs4s/MiraiGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFD4_1"
+	"github.com/Mrs4s/MiraiGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE5_2"
+	"github.com/Mrs4s/MiraiGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE7_3"
 	"github.com/Mrs4s/MiraiGo/client/pb/trpc"
 	"math/rand"
 	"time"
@@ -750,6 +753,36 @@ func (c *QQClient) buildConfPushRespPacket(t int32, pktSeq int64, jceBuf []byte)
 	return c.uniPacket("ConfigPushSvc.PushResp", pkt.ToBytes())
 }
 
+// OidbSvcTrpcTcp.0xfd4_1
+func (c *QQClient) buildNewFriendGroupListRequestPacket(continueToken []byte) (uint16, []byte) {
+	var mode = 4399
+	if continueToken == nil {
+		mode = 0
+	}
+	request := &oidbSvcTrpcTcp0xFD4_1.Request{
+		Mode:          int32(mode),
+		Field10003:    4051,
+		Field10002:    []int64{13578, 13579, 13573, 13572, 13568},
+		Field6:        1,
+		Field7:        0,
+		Count:         300,
+		ContinueToken: continueToken,
+		Body: []*oidbSvcTrpcTcp0xFD4_1.Body{
+			{
+				Type:   1,
+				Number: &oidbSvcTrpcTcp0xFD4_1.OidbNumber{Numbers: []int64{103, 102, 20002}},
+			},
+			{
+				Type:   4,
+				Number: &oidbSvcTrpcTcp0xFD4_1.OidbNumber{Numbers: []int64{100, 101, 102}},
+			},
+		},
+	}
+	b, _ := proto.Marshal(request)
+	payload := c.packOIDBPackage(0xfd4, 1, b)
+	return c.uniPacket("OidbSvcTrpcTcp.0xfd4_1", payload)
+}
+
 // friendlist.getFriendGroupList
 func (c *QQClient) buildFriendGroupListRequestPacket(friendStartIndex, friendListCount, groupStartIndex, groupListCount int16) (uint16, []byte) {
 	d50, _ := proto.Marshal(&pb.D50ReqBody{
@@ -913,6 +946,32 @@ func (c *QQClient) buildFriendDeletePacket(target int64) (uint16, []byte) {
 	return c.uniPacket("friendlist.delFriend", pkt.ToBytes())
 }
 
+// OidbSvcTrpcTcp.0xfe5_2
+// TODO 1000群以上可能获取不了了
+func (c *QQClient) buildNewGroupListRequestPacket() (uint16, []byte) {
+	// Create an instance of Request
+	request := &oidbSvcTrpcTcp0xFE5_2.Request{
+		Config: &oidbSvcTrpcTcp0xFE5_2.Config{
+			Config1: &oidbSvcTrpcTcp0xFE5_2.Config1{
+				GroupOwner:  true,
+				MemberMax:   true,
+				MemberCount: true,
+				GroupName:   true,
+				Question:    true,
+			},
+			Config2: &oidbSvcTrpcTcp0xFE5_2.Config2{
+				// Initialize fields as needed
+			},
+			Config3: &oidbSvcTrpcTcp0xFE5_2.Config3{
+				// Initialize fields as needed
+			},
+		},
+	}
+	b, _ := proto.Marshal(request)
+	payload := c.packOIDBPackage(0xfe5, 2, b)
+	return c.uniPacket("OidbSvcTrpcTcp.0xfe5_2", payload)
+}
+
 // friendlist.GetTroopListReqV2
 func (c *QQClient) buildGroupListRequestPacket(vecCookie []byte) (uint16, []byte) {
 	req := &jce.TroopListRequest{
@@ -940,6 +999,48 @@ func (c *QQClient) buildGroupListRequestPacket(vecCookie []byte) (uint16, []byte
 		Status:       make(map[string]string),
 	}
 	return c.uniPacket("friendlist.GetTroopListReqV2", pkt.ToBytes())
+}
+
+// OidbSvcTrpcTcp.0xfe7_3
+func (c *QQClient) buildNewGetTroopMemberListRequestPacket(targetGroupUin int64, targetUid []string, targetUin []int64, nextToken string) (uint16, []byte) {
+	getAll := targetUid == nil && targetUin == nil
+	var targets []*oidbSvcTrpcTcp0xFE7_3.TargetUser
+	var field2, field3 int64
+	if getAll {
+		field2 = 5
+		field3 = 2
+		targets = nil
+	} else {
+		field2 = 3
+		field3 = 0
+		for _, uid := range targetUid {
+			targets = append(targets, &oidbSvcTrpcTcp0xFE7_3.TargetUser{Uid: uid})
+		}
+		for _, uin := range targetUin {
+			targets = append(targets, &oidbSvcTrpcTcp0xFE7_3.TargetUser{Uin: uin})
+		}
+	}
+
+	request := &oidbSvcTrpcTcp0xFE7_3.Request{
+		GroupUin:    targetGroupUin,
+		TargetsUser: targets,
+		Field2:      field2,
+		Field3:      field3,
+		Body: &oidbSvcTrpcTcp0xFE7_3.Body{
+			MemberName:       true,
+			MemberCard:       true,
+			Level:            true,
+			JoinTimestamp:    true,
+			LastMsgTimestamp: true,
+			Permission:       true,
+			ShutUpTimestamp:  true,
+			SpecialTitle:     true,
+		},
+		Token: nextToken,
+	}
+	b, _ := proto.Marshal(request)
+	payload := c.packOIDBPackage(0xfe7, 3, b)
+	return c.uniPacket("OidbSvcTrpcTcp.0xfe7_3", payload)
 }
 
 // friendlist.GetTroopMemberListReq

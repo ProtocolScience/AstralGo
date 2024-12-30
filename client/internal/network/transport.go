@@ -1,17 +1,15 @@
 package network
 
 import (
-	"github.com/Mrs4s/MiraiGo/utils"
-	log "github.com/sirupsen/logrus"
-	"strconv"
-	"strings"
-
 	"github.com/Mrs4s/MiraiGo/binary"
 	"github.com/Mrs4s/MiraiGo/client/internal/auth"
 	"github.com/Mrs4s/MiraiGo/client/pb"
 	"github.com/Mrs4s/MiraiGo/internal/proto"
+	"github.com/Mrs4s/MiraiGo/utils"
 	"github.com/Mrs4s/MiraiGo/wrapper"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"strconv"
 )
 
 // Transport is a network transport.
@@ -24,95 +22,117 @@ type Transport struct {
 	// conn *TCPClient
 }
 
-var WhiteListCommands = `
-ConnAuthSvr.fast_qq_login
-ConnAuthSvr.sdk_auth_api
-ConnAuthSvr.sdk_auth_api_emp
-FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.DoBarrage
-FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.DoComment
-FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.DoFollow
-FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.DoLike
-FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.DoPush
-FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.DoReply
-FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.PublishFeed
-FeedCloudSvr.trpc.videocircle.circleprofile.CircleProfile.SetProfile
-friendlist.addFriend
-friendlist.AddFriendReq
-friendlist.ModifyGroupInfoReq
-MessageSvc.PbSendMsg
-MsgProxy.SendMsg
-OidbSvc.0x4ff_9
-OidbSvc.0x4ff_9_IMCore
-OidbSvc.0x56c_6
-OidbSvc.0x6d9_4
-OidbSvc.0x758
-OidbSvc.0x758_0
-OidbSvc.0x758_1
-OidbSvc.0x88d_0
-OidbSvc.0x89a_0
-OidbSvc.0x89b_1
-OidbSvc.0x8a1_0
-OidbSvc.0x8a1_7
-OidbSvc.0x8ba
-OidbSvc.0x9fa
-OidbSvc.oidb_0x758
-OidbSvcTrpcTcp.0x101e_1
-OidbSvcTrpcTcp.0x101e_2
-OidbSvcTrpcTcp.0x1100_1
-OidbSvcTrpcTcp.0x1105_1
-OidbSvcTrpcTcp.0x1107_1
-OidbSvcTrpcTcp.0x55f_0
-OidbSvcTrpcTcp.0x6d9_4
-OidbSvcTrpcTcp.0xf55_1
-OidbSvcTrpcTcp.0xf57_1
-OidbSvcTrpcTcp.0xf57_106
-OidbSvcTrpcTcp.0xf57_9
-OidbSvcTrpcTcp.0xf65_1
-OidbSvcTrpcTcp.0xf65_10 
-OidbSvcTrpcTcp.0xf67_1
-OidbSvcTrpcTcp.0xf67_5
-OidbSvcTrpcTcp.0xf6e_1
-OidbSvcTrpcTcp.0xf88_1
-OidbSvcTrpcTcp.0xf89_1
-OidbSvcTrpcTcp.0xfa5_1
-ProfileService.getGroupInfoReq
-ProfileService.GroupMngReq
-QChannelSvr.trpc.qchannel.commwriter.ComWriter.DoComment
-QChannelSvr.trpc.qchannel.commwriter.ComWriter.DoReply
-QChannelSvr.trpc.qchannel.commwriter.ComWriter.PublishFeed
-qidianservice.135
-qidianservice.207
-qidianservice.269
-qidianservice.290
-SQQzoneSvc.addComment
-SQQzoneSvc.addReply
-SQQzoneSvc.forward
-SQQzoneSvc.like
-SQQzoneSvc.publishmood
-SQQzoneSvc.shuoshuo
-trpc.group_pro.msgproxy.sendmsg
-trpc.login.ecdh.EcdhService.SsoNTLoginPasswordLoginUnusualDevice
-trpc.o3.ecdh_access.EcdhAccess.SsoEstablishShareKey
-trpc.o3.ecdh_access.EcdhAccess.SsoSecureA2Access
-trpc.o3.ecdh_access.EcdhAccess.SsoSecureA2Establish
-trpc.o3.ecdh_access.EcdhAccess.SsoSecureAccess
-trpc.o3.report.Report.SsoReport
-trpc.passwd.manager.PasswdManager.SetPasswd
-trpc.passwd.manager.PasswdManager.VerifyPasswd
-trpc.qlive.relationchain_svr.RelationchainSvr.Follow
-trpc.qlive.word_svr.WordSvr.NewPublicChat
-trpc.qqhb.qqhb_proxy.Handler.sso_handle
-trpc.springfestival.redpacket.LuckyBag.SsoSubmitGrade
-wtlogin.device_lock
-wtlogin.exchange_emp
-wtlogin.login
-wtlogin.name2uin
-wtlogin.qrlogin
-wtlogin.register
-wtlogin.trans_emp
-wtlogin_device.login
-wtlogin_device.tran_sim_emp
-`
+var NTListCommands = []string{
+	"trpc.msg.register_proxy.RegisterProxy.SsoInfoSync",
+	"trpc.qq_new_tech.status_svc.StatusService.SsoHeartBeat",
+	"trpc.qq_new_tech.status_svc.StatusService.UnRegister",
+	"trpc.qq_new_tech.status_svc.StatusService.KickNT",
+	"trpc.msg.olpush.OlPushService.MsgPush",
+	"OidbSvcTrpcTcp.0x9067_202",
+	"OidbSvcTrpcTcp.0xfd4_1",
+	"OidbSvcTrpcTcp.0xfe7_3",
+	"OidbSvcTrpcTcp.0xfe5_2",
+}
+
+var WhiteListCommands = []string{
+	"ConnAuthSvr.fast_qq_login",
+	"ConnAuthSvr.sdk_auth_api",
+	"ConnAuthSvr.sdk_auth_api_emp",
+	"FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.DoBarrage",
+	"FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.DoComment",
+	"FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.DoFollow",
+	"FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.DoLike",
+	"FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.DoPush",
+	"FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.DoReply",
+	"FeedCloudSvr.trpc.feedcloud.commwriter.ComWriter.PublishFeed",
+	"FeedCloudSvr.trpc.videocircle.circleprofile.CircleProfile.SetProfile",
+	"friendlist.addFriend",
+	"friendlist.AddFriendReq",
+	"friendlist.ModifyGroupInfoReq",
+	"MessageSvc.PbSendMsg",
+	"MsgProxy.SendMsg",
+	"OidbSvc.0x4ff_9",
+	"OidbSvc.0x4ff_9_IMCore",
+	"OidbSvc.0x56c_6",
+	"OidbSvc.0x6d9_4",
+	"OidbSvc.0x758",
+	"OidbSvc.0x758_0",
+	"OidbSvc.0x758_1",
+	"OidbSvc.0x88d_0",
+	"OidbSvc.0x89a_0",
+	"OidbSvc.0x89b_1",
+	"OidbSvc.0x8a1_0",
+	"OidbSvc.0x8a1_7",
+	"OidbSvc.0x8ba",
+	"OidbSvc.0x9fa",
+	"OidbSvc.oidb_0x758",
+	"OidbSvcTrpcTcp.0x101e_1",
+	"OidbSvcTrpcTcp.0x101e_2",
+	"OidbSvcTrpcTcp.0x1100_1",
+	"OidbSvcTrpcTcp.0x1105_1",
+	"OidbSvcTrpcTcp.0x1107_1",
+	"OidbSvcTrpcTcp.0x55f_0",
+	"OidbSvcTrpcTcp.0x6d9_4",
+	"OidbSvcTrpcTcp.0xf55_1",
+	"OidbSvcTrpcTcp.0xf57_1",
+	"OidbSvcTrpcTcp.0xf57_106",
+	"OidbSvcTrpcTcp.0xf57_9",
+	"OidbSvcTrpcTcp.0xf65_1",
+	"OidbSvcTrpcTcp.0xf65_10",
+	"OidbSvcTrpcTcp.0xf67_1",
+	"OidbSvcTrpcTcp.0xf67_5",
+	"OidbSvcTrpcTcp.0xf6e_1",
+	"OidbSvcTrpcTcp.0xf88_1",
+	"OidbSvcTrpcTcp.0xf89_1",
+	"OidbSvcTrpcTcp.0xfa5_1",
+	"ProfileService.getGroupInfoReq",
+	"ProfileService.GroupMngReq",
+	"QChannelSvr.trpc.qchannel.commwriter.ComWriter.DoComment",
+	"QChannelSvr.trpc.qchannel.commwriter.ComWriter.DoReply",
+	"QChannelSvr.trpc.qchannel.commwriter.ComWriter.PublishFeed",
+	"qidianservice.135",
+	"qidianservice.207",
+	"qidianservice.269",
+	"qidianservice.290",
+	"SQQzoneSvc.addComment",
+	"SQQzoneSvc.addReply",
+	"SQQzoneSvc.forward",
+	"SQQzoneSvc.like",
+	"SQQzoneSvc.publishmood",
+	"SQQzoneSvc.shuoshuo",
+	"trpc.group_pro.msgproxy.sendmsg",
+	"trpc.login.ecdh.EcdhService.SsoNTLoginPasswordLoginUnusualDevice",
+	"trpc.o3.ecdh_access.EcdhAccess.SsoEstablishShareKey",
+	"trpc.o3.ecdh_access.EcdhAccess.SsoSecureA2Access",
+	"trpc.o3.ecdh_access.EcdhAccess.SsoSecureA2Establish",
+	"trpc.o3.ecdh_access.EcdhAccess.SsoSecureAccess",
+	"trpc.o3.report.Report.SsoReport",
+	"trpc.passwd.manager.PasswdManager.SetPasswd",
+	"trpc.passwd.manager.PasswdManager.VerifyPasswd",
+	"trpc.qlive.relationchain_svr.RelationchainSvr.Follow",
+	"trpc.qlive.word_svr.WordSvr.NewPublicChat",
+	"trpc.qqhb.qqhb_proxy.Handler.sso_handle",
+	"trpc.springfestival.redpacket.LuckyBag.SsoSubmitGrade",
+	"wtlogin.device_lock",
+	"wtlogin.exchange_emp",
+	"wtlogin.login",
+	"wtlogin.name2uin",
+	"wtlogin.qrlogin",
+	"wtlogin.register",
+	"wtlogin.trans_emp",
+	"wtlogin_device.login",
+	"wtlogin_device.tran_sim_emp",
+}
+
+// Function to check if a command exists in the array
+func listContains(cmd string, list []string) bool {
+	for _, item := range list {
+		if item == cmd {
+			return true
+		}
+	}
+	return false
+}
 
 func (t *Transport) packBody(req *Request, w *binary.Writer) {
 	pos := w.FillUInt32()
@@ -143,12 +163,19 @@ func (t *Transport) packBody(req *Request, w *binary.Writer) {
 	var sign []byte
 	var token []byte
 	var extra []byte
-	if strings.Contains(WhiteListCommands, req.CommandName) {
+	if listContains(req.CommandName, WhiteListCommands) {
 		var err error
 		sign, extra, token, err = t.PackSecSign(req)
 		if err != nil {
 			log.Error("pack sec sign err:", err)
 		}
+	}
+
+	var messageType int32
+	if listContains(req.CommandName, NTListCommands) {
+		messageType = 34
+	} else {
+		messageType = 0
 	}
 	uidCache := utils.GlobalCaches.GetByUIN(req.Uin)
 	m := &pb.SSOReserveField{
@@ -159,7 +186,7 @@ func (t *Transport) packBody(req *Request, w *binary.Writer) {
 		Imsi:          0,
 		NetworkType:   1,
 		IpStackType:   1,
-		MessageType:   0,
+		MessageType:   messageType,
 		LocaleId:      2052,
 		NtCoreVersion: 100,
 		TraceParent:   "00-0000000000000000000000000000000-0000000000000000-00",
@@ -169,6 +196,7 @@ func (t *Transport) packBody(req *Request, w *binary.Writer) {
 			SecExtra:       extra,
 		},
 		SsoIpOrigin: 3,
+		//TraceInfo:
 	}
 	secSign, err := proto.Marshal(m)
 	if err != nil {

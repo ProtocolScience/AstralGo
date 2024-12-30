@@ -2,23 +2,164 @@ package client
 
 import (
 	"encoding/hex"
+	"github.com/Mrs4s/MiraiGo/binary"
 	"github.com/Mrs4s/MiraiGo/client/internal/network"
 	oldMsg "github.com/Mrs4s/MiraiGo/client/pb/msg"
 	"github.com/Mrs4s/MiraiGo/client/pb/nt/media"
 	ntMsg "github.com/Mrs4s/MiraiGo/client/pb/nt/message"
+	"github.com/Mrs4s/MiraiGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFD4_1"
+	"github.com/Mrs4s/MiraiGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE5_2"
+	"github.com/Mrs4s/MiraiGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE7_3"
 	"github.com/Mrs4s/MiraiGo/client/pb/trpc"
 	"github.com/Mrs4s/MiraiGo/internal/proto"
+	"github.com/Mrs4s/MiraiGo/utils"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"runtime/debug"
+	"strconv"
 )
 
+var NTDecoders = map[string]func(*QQClient, *network.Packet) (any, error){
+	"trpc.msg.register_proxy.RegisterProxy.SsoInfoSync":      decodeClientRegisterResponse,
+	"trpc.qq_new_tech.status_svc.StatusService.SsoHeartBeat": decodeSsoHeartBeatResponse,
+	"trpc.qq_new_tech.status_svc.StatusService.UnRegister":   decodeUnregisterPacket,
+	"trpc.qq_new_tech.status_svc.StatusService.KickNT":       decodeKickNTPacket,
+	"trpc.msg.olpush.OlPushService.MsgPush":                  decodeOlPushServicePacket,
+	"trpc.msg.register_proxy.RegisterProxy.PushParams":       decodePushParamsPacket,
+	"trpc.msg.register_proxy.RegisterProxy.InfoSyncPush":     decodeInfoSyncPushPacket,
+	"OidbSvcTrpcTcp.0x9067_202":                              decodeRKeyGetResponse,
+	"OidbSvcTrpcTcp.0xfd4_1":                                 decodeNewFriendGroupListResponse,
+	"OidbSvcTrpcTcp.0xfe7_3":                                 decodeNewGetTroopMemberListResponse,
+	"OidbSvcTrpcTcp.0xfe5_2":                                 decodeNewGetTroopListSimplyResponse,
+}
+
 func init() {
-	decoders["trpc.msg.register_proxy.RegisterProxy.SsoInfoSync"] = decodeClientRegisterResponse
-	decoders["trpc.qq_new_tech.status_svc.StatusService.SsoHeartBeat"] = decodeSsoHeartBeatResponse
-	decoders["trpc.qq_new_tech.status_svc.StatusService.UnRegister"] = decodeUnregisterPacket
-	decoders["trpc.qq_new_tech.status_svc.StatusService.KickNT"] = decodeKickNTPacket
-	decoders["trpc.msg.olpush.OlPushService.MsgPush"] = decodeOlPushServicePacket
-	decoders["OidbSvcTrpcTcp.0x9067_202"] = decode0x9067Packet
+	for k, v := range NTDecoders {
+		decoders[k] = v
+	}
+}
+
+func decodeInfoSyncPushPacket(client *QQClient, packet *network.Packet) (any, error) {
+	return nil, nil
+}
+
+func decodePushParamsPacket(c *QQClient, pkt *network.Packet) (any, error) {
+	rsp := trpc.TrpcPushParams{}
+	if err := proto.Unmarshal(pkt.Payload, &rsp); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal protobuf message")
+	}
+	c.OnlineClients = []*OtherClientInfo{}
+	for _, device := range rsp.OnlineDevices {
+		name, kind := device.DeviceName.Unwrap(), device.PlatType.Unwrap()
+		instId := int64(device.InstId.Unwrap())
+		c.OnlineClients = append(c.OnlineClients, &OtherClientInfo{
+			AppId:      instId,
+			DeviceName: name,
+			DeviceKind: kind,
+		})
+	}
+	return nil, nil
+}
+
+// 只能读取1000个以内的群
+func decodeNewGetTroopListSimplyResponse(c *QQClient, pkt *network.Packet) (any, error) {
+	rsp := oidbSvcTrpcTcp0xFE5_2.Response{}
+	err := unpackOIDBPackage(pkt.Payload, &rsp)
+	if err != nil {
+		return nil, err
+	}
+	l := make([]*GroupInfo, 0, len(rsp.Groups))
+	for _, g := range rsp.Groups {
+		l = append(l, &GroupInfo{
+			Uin:            g.GroupUin,
+			Code:           g.GroupUin,
+			Name:           g.Info.GroupName,
+			OwnerUin:       utils.GlobalCaches.GetByUID(g.Info.GroupOwner.Uid).UIN,
+			MemberCount:    uint16(g.Info.MemberCount),
+			MaxMemberCount: uint16(g.Info.MemberCount),
+			client:         c,
+		})
+	}
+	return l, nil
+}
+func decodeNewGetTroopMemberListResponse(_ *QQClient, pkt *network.Packet) (any, error) {
+	rsp := oidbSvcTrpcTcp0xFE7_3.Response{}
+	err := unpackOIDBPackage(pkt.Payload, &rsp)
+	if err != nil {
+		return nil, err
+	}
+	l := make([]*GroupMemberInfo, 0, len(rsp.Members))
+	for _, m := range rsp.Members {
+		permission := Member
+		if m.Permission == 1 {
+			permission = Owner
+		} else if m.Permission == 2 {
+			permission = Administrator
+		}
+		level := 0
+		if m.Level != nil {
+			level = int(m.Level.Level)
+		}
+		l = append(l, &GroupMemberInfo{
+			Uid:             m.Uin.Uid,
+			Uin:             m.Uin.Uin,
+			Nickname:        m.MemberName,
+			Gender:          1, //TODO 读取群成员性别
+			CardName:        m.MemberCard.MemberCard,
+			Level:           uint16(level),
+			JoinTime:        int64(m.JoinTimestamp),
+			LastSpeakTime:   int64(m.LastMsgTimestamp),
+			SpecialTitle:    m.SpecialTitle,
+			ShutUpTimestamp: int64(m.ShutUpTimestamp),
+			Permission:      permission,
+		})
+	}
+	return &NTGroupMemberListResponse{
+		nextToken: rsp.Token,
+		list:      l,
+	}, nil
+}
+func decodeNewFriendGroupListResponse(_ *QQClient, pkt *network.Packet) (any, error) {
+	rsp := oidbSvcTrpcTcp0xFD4_1.Response{}
+	err := unpackOIDBPackage(pkt.Payload, &rsp)
+	if err != nil {
+		log.Warn("decodeNewFriendGroupListResponse failed! Hex: " + hex.EncodeToString(pkt.Payload) + ",err: " + err.Error())
+		return nil, err
+	}
+	l := make([]*FriendInfo, 0, len(rsp.Friends))
+	//好友分组 rsp.Groups
+	for _, f := range rsp.Friends {
+		var foundAddit *oidbSvcTrpcTcp0xFD4_1.FriendAdditional = nil
+		for _, addit := range f.Additional {
+			if addit.Type == 1 {
+				foundAddit = addit
+			}
+		}
+		if foundAddit == nil {
+			continue
+		}
+		properties := foundAddit.Layer1.Properties
+		var nick = ""
+		var remark = ""
+		for _, prop := range properties {
+			if prop.Code == 20002 {
+				nick = prop.Value
+			} else if prop.Code == 103 {
+				remark = prop.Value
+			}
+		}
+		l = append(l, &FriendInfo{
+			Uid:      f.Uid,
+			Uin:      f.Uin,
+			Nickname: nick,
+			Remark:   remark,
+			FaceId:   0,
+		})
+	}
+	return &NTFriendListResponse{
+		ContinueToken: rsp.ContinueToken,
+		List:          l,
+	}, nil
 }
 func decoderObserver(c *QQClient, pkt *network.Packet) (any, error) {
 	c.error("decoderObserver: %s", hex.EncodeToString(pkt.Payload))
@@ -70,7 +211,7 @@ func decodeKickNTPacket(c *QQClient, pkt *network.Packet) (any, error) {
 	go c.DisconnectedEvent.dispatch(c, &DisconnectedEvent{Message: resp.Tips.Unwrap(), Reconnection: false})
 	return nil, nil
 }
-func decode0x9067Packet(c *QQClient, pkt *network.Packet) (any, error) {
+func decodeRKeyGetResponse(c *QQClient, pkt *network.Packet) (any, error) {
 	resp := &media.NTV2RichMediaResp{}
 	err := unpackOIDBPackage(pkt.Payload, resp)
 	if err != nil {
@@ -104,7 +245,7 @@ func decodeOlPushServicePacket(c *QQClient, pkt *network.Packet) (any, error) {
 		}
 	}()
 	if pkg.Body == nil {
-		return nil, errors.New("message body is empty")
+		return nil, errors.New("message body is empty, type:" + strconv.Itoa(int(typ)))
 	}
 	switch typ {
 	case 82: // group msg
@@ -239,7 +380,16 @@ func decodeOlPushServicePacket(c *QQClient, pkt *network.Packet) (any, error) {
 			}
 		}
 		return nil, nil
-
+	case 0x210: // friend event, 528
+		subType := pkg.ContentHead.SubType.Unwrap()
+		reader := binary.NewReader(pkg.Body.MsgContent)
+		log.Debugf("0x210: subType: %d, Msg: %s", subType, hex.EncodeToString(reader.ReadAvailable()))
+		return nil, nil
+	case 0x2DC: // grp event, 732
+		subType := pkg.ContentHead.SubType.Unwrap()
+		reader := binary.NewReader(pkg.Body.MsgContent)
+		log.Debugf("0x2DC: subType: %d, Msg: %s", subType, hex.EncodeToString(reader.ReadAvailable()))
+		return nil, nil
 		/*
 			case 33: // member increase
 				pb := message.GroupChange{}

@@ -152,7 +152,6 @@ func (h *handlerInfo) getParams() network.RequestParams {
 	return h.params
 }
 
-var GlobalRKey *RKeyMap
 var decoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"wtlogin.login":                                decodeLoginResponse,
 	"wtlogin.exchange_emp":                         decodeExchangeEmpResponse,
@@ -495,20 +494,42 @@ func (c *QQClient) GetFriendList() (*FriendListResponse, error) {
 		return &FriendListResponse{TotalCount: int32(len(rsp)), List: rsp}, nil
 	}
 	curFriendCount := 0
+	/*
+		r := &FriendListResponse{}
+		for {
+			rsp, err := c.sendAndWait(c.buildFriendGroupListRequestPacket(int16(curFriendCount), 150, 0, 0))
+			if err != nil {
+				return nil, err
+			}
+			list := rsp.(*FriendListResponse)
+			r.TotalCount = list.TotalCount
+			r.List = append(r.List, list.List...)
+			curFriendCount += len(list.List)
+			if int32(len(r.List)) >= r.TotalCount {
+				break
+			}
+		}*/
+
 	r := &FriendListResponse{}
+	var continueToken []byte = nil
 	for {
-		rsp, err := c.sendAndWait(c.buildFriendGroupListRequestPacket(int16(curFriendCount), 150, 0, 0))
+		rsp, err := c.sendAndWait(c.buildNewFriendGroupListRequestPacket(continueToken))
+		list := rsp.(*NTFriendListResponse)
 		if err != nil {
 			return nil, err
-		}
-		list := rsp.(*FriendListResponse)
-		r.TotalCount = list.TotalCount
-		r.List = append(r.List, list.List...)
-		curFriendCount += len(list.List)
-		if int32(len(r.List)) >= r.TotalCount {
-			break
+		} else {
+			continueToken = list.ContinueToken
+			r.List = append(r.List, list.List...)
+			curFriendCount += len(list.List)
+			if list.ContinueToken == nil {
+				break
+			}
 		}
 	}
+	for _, t := range r.List {
+		utils.GlobalCaches.Add(t.Uid, t.Uin)
+	}
+	r.TotalCount = int32(len(r.List))
 	return r, nil
 }
 
@@ -532,7 +553,36 @@ func (c *QQClient) ReloadGroupList() error {
 }
 
 func (c *QQClient) GetGroupList() ([]*GroupInfo, error) {
-	rsp, err := c.sendAndWait(c.buildGroupListRequestPacket(EmptyBytes))
+	/*
+		rsp, err := c.sendAndWait(c.buildGroupListRequestPacket(EmptyBytes))
+		if err != nil {
+			return nil, err
+		}
+		interner := intern.NewStringInterner()
+		r := rsp.([]*GroupInfo)
+		wg := sync.WaitGroup{}
+		batch := 50
+		for i := 0; i < len(r); i += batch {
+			k := i + batch
+			if k > len(r) {
+				k = len(r)
+			}
+			wg.Add(k - i)
+			for j := i; j < k; j++ {
+				go func(g *GroupInfo, wg *sync.WaitGroup) {
+					defer wg.Done()
+					m, err := c.getGroupMembers(g, interner)
+					if err != nil {
+						return
+					}
+					g.Members = m
+					g.Name = interner.Intern(g.Name)
+				}(r[j], &wg)
+			}
+			wg.Wait()
+		}
+		return r, nil*/
+	rsp, err := c.sendAndWait(c.buildNewGroupListRequestPacket())
 	if err != nil {
 		return nil, err
 	}
@@ -568,18 +618,50 @@ func (c *QQClient) GetGroupMembers(group *GroupInfo) ([]*GroupMemberInfo, error)
 }
 
 func (c *QQClient) getGroupMembers(group *GroupInfo, interner *intern.StringInterner) ([]*GroupMemberInfo, error) {
-	var nextUin int64
+
+	/*
+		var list []*GroupMemberInfo
+		var nextUin int64
+			for {
+				data, err := c.sendAndWait(c.buildGroupMemberListRequestPacket(group.Uin, group.Code, nextUin))
+				if err != nil {
+					return nil, err
+				}
+				if data == nil {
+					return nil, errors.New("group members list is unavailable: rsp is nil")
+				}
+				rsp := data.(*groupMemberListResponse)
+				nextUin = rsp.NextUin
+				for _, m := range rsp.list {
+					m.Group = group
+					if m.Uin == group.OwnerUin {
+						m.Permission = Owner
+					}
+					m.CardName = interner.Intern(m.CardName)
+					m.Nickname = interner.Intern(m.Nickname)
+					m.SpecialTitle = interner.Intern(m.SpecialTitle)
+				}
+				list = append(list, rsp.list...)
+				if nextUin == 0 {
+					sort.Slice(list, func(i, j int) bool {
+						return list[i].Uin < list[j].Uin
+					})
+					return list, nil
+				}
+			}*/
 	var list []*GroupMemberInfo
+	var requestToken string
 	for {
-		data, err := c.sendAndWait(c.buildGroupMemberListRequestPacket(group.Uin, group.Code, nextUin))
+		data, err := c.sendAndWait(c.buildNewGetTroopMemberListRequestPacket(group.Code, nil, nil, requestToken))
 		if err != nil {
+			log.Warnf("get group members failed! group: %d err: %v ", group.Code, err.Error())
 			return nil, err
 		}
 		if data == nil {
 			return nil, errors.New("group members list is unavailable: rsp is nil")
 		}
-		rsp := data.(*groupMemberListResponse)
-		nextUin = rsp.NextUin
+		rsp := data.(*NTGroupMemberListResponse)
+		requestToken = rsp.nextToken
 		for _, m := range rsp.list {
 			m.Group = group
 			if m.Uin == group.OwnerUin {
@@ -590,10 +672,13 @@ func (c *QQClient) getGroupMembers(group *GroupInfo, interner *intern.StringInte
 			m.SpecialTitle = interner.Intern(m.SpecialTitle)
 		}
 		list = append(list, rsp.list...)
-		if nextUin == 0 {
+		if requestToken == "" {
 			sort.Slice(list, func(i, j int) bool {
 				return list[i].Uin < list[j].Uin
 			})
+			for _, t := range list {
+				utils.GlobalCaches.Add(t.Uid, t.Uin)
+			}
 			return list, nil
 		}
 	}

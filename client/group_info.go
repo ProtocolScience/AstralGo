@@ -43,6 +43,7 @@ type (
 
 	GroupMemberInfo struct {
 		Group           *GroupInfo
+		Uid             string
 		Uin             int64
 		Nickname        string
 		CardName        string

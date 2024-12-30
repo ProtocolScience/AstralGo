@@ -14,10 +14,10 @@ type SSOReserveField struct {
 	NetworkType   int32          `protobuf:"varint,19,opt"`
 	IpStackType   int32          `protobuf:"varint,20,opt"`
 	MessageType   int32          `protobuf:"varint,21,opt"`
+	TraceInfo     []byte         `protobuf:"bytes,23,opt"`
 	SecInfo       *SsoSecureInfo `protobuf:"bytes,24,opt"`
 	NtCoreVersion int32          `protobuf:"varint,26,opt"`
 	SsoIpOrigin   int32          `protobuf:"varint,28,opt"`
-	_             [0]func()
 }
 
 type SsoSecureInfo struct {

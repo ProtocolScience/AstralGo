@@ -60,6 +60,7 @@ type (
 	}
 
 	FriendInfo struct {
+		Uid      string
 		Uin      int64
 		Nickname string
 		Remark   string
@@ -90,6 +91,11 @@ type (
 	FriendListResponse struct {
 		TotalCount int32
 		List       []*FriendInfo
+	}
+
+	NTFriendListResponse struct {
+		ContinueToken []byte
+		List          []*FriendInfo
 	}
 
 	OtherClientStatusChangedEvent struct {
@@ -287,6 +293,11 @@ type (
 		CanAtAll                 bool   `json:"can_at_all"`
 		RemainAtAllCountForGroup uint32 `json:"remain_at_all_count_for_group"`
 		RemainAtAllCountForUin   uint32 `json:"remain_at_all_count_for_uin"`
+	}
+
+	NTGroupMemberListResponse struct {
+		nextToken string
+		list      []*GroupMemberInfo
 	}
 
 	groupMemberListResponse struct {

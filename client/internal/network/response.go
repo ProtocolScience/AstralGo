@@ -9,14 +9,14 @@ import (
 )
 
 type Response struct {
-	Type        RequestType
-	EncryptType EncryptType
-	SequenceID  int32
-	Uin         int64
-	CommandName string
-	Body        []byte
-
-	Message string
+	Type            RequestType
+	EncryptType     EncryptType
+	SequenceID      int32
+	Uin             int64
+	CommandName     string
+	Body            []byte
+	SSOReserveField []byte
+	Message         string
 
 	// Request is the original request that obtained this response.
 	// Request *Request
@@ -77,7 +77,8 @@ func (t *Transport) readSSOFrame(resp *Response, payload []byte) error {
 	}
 	_ = head.ReadInt32Bytes() // session id
 	compressedFlag := head.ReadInt32()
-
+	header := head.ReadBytes(int(head.ReadInt32() - 4))
+	resp.SSOReserveField = header
 	bodyLen := reader.ReadInt32() - 4
 	body := reader.ReadAvailable()
 	if bodyLen > 0 && bodyLen < int32(len(body)) {

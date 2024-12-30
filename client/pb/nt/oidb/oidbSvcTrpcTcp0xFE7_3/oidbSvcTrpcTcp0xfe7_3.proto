@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+option go_package = "github.com/Mrs4s/MiraiGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE7_3";
+
+
+// Request message
+message Request {
+  int64 groupUin = 1;
+  int64 field2 = 2;
+  int64 field3 = 3;
+  Body body = 4;
+  repeated TargetUser targetsUser = 5;
+  string token = 15;
+}
+
+// Body message
+message Body {
+  bool memberName = 10;
+  bool memberCard = 11;
+  bool level = 12;
+  bool field13 = 13;
+  bool field16 = 16;
+  bool specialTitle = 17;
+  bool field18 = 18;
+  bool field20 = 20;
+  bool field21 = 21;
+  bool joinTimestamp = 100;
+  bool lastMsgTimestamp = 101;
+  bool shutUpTimestamp = 102;
+  bool field103 = 103;
+  bool field104 = 104;
+  bool field105 = 105;
+  bool field106 = 106;
+  bool permission = 107;
+  bool field200 = 200;
+  bool field201 = 201;
+}
+
+
+// TargetUser message
+message TargetUser {
+  string uid = 1;
+  int64 uin = 2;
+}
+
+// Response message
+message Response {
+  int64 groupUin = 1;
+  repeated Member members = 2;
+  int64 field3 = 3;
+  int64 memberChangeSeq = 5;
+  int64 memberCardChangeSeq = 6;
+  string token = 15;
+}
+
+// Member message
+message Member {
+  Uin uin = 1;
+  string memberName = 10;
+  Card memberCard = 11;
+  Level level = 12;
+  string specialTitle = 17;
+  int32 joinTimestamp = 100;
+  int32 lastMsgTimestamp = 101;
+  int32 shutUpTimestamp = 102;
+  int32 permission = 107;
+}
+
+// Uin message
+message Uin {
+  string uid = 2;
+  int64 uin = 4;
+}
+
+// Card message
+message Card {
+  string memberCard = 2;
+}
+
+// Level message
+message Level {
+  int32 level = 2;
+  repeated int64 infos = 1;
+}

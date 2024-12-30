@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+option go_package = "github.com/Mrs4s/MiraiGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE5_2";
+
+// Request message
+message Request {
+  Config config = 1;
+}
+
+// Config message
+message Config {
+  Config1 config1 = 1;
+  Config2 config2 = 2;
+  Config3 config3 = 3;
+}
+
+// Config1 message
+message Config1 {
+  bool groupOwner = 1;
+  bool field2 = 2;
+  bool memberMax = 3;
+  bool memberCount = 4;
+  bool groupName = 5;
+  bool field8 = 8;
+  bool field9 = 9;
+  bool field10 = 10;
+  bool field11 = 11;
+  bool field12 = 12;
+  bool field13 = 13;
+  bool field14 = 14;
+  bool field15 = 15;
+  bool field16 = 16;
+  bool field17 = 17;
+  bool field18 = 18;
+  bool question = 19;
+  bool field20 = 20;
+  bool field22 = 22;
+  bool field23 = 23;
+  bool field24 = 24;
+  bool field25 = 25;
+  bool field26 = 26;
+  bool field27 = 27;
+  bool field28 = 28;
+  bool field29 = 29;
+  bool field30 = 30;
+  bool field31 = 31;
+  bool field32 = 32;
+  bool field5001 = 5001;
+  bool field5002 = 5002;
+  bool field5003 = 5003;
+}
+
+// Config2 message
+message Config2 {
+  bool field1 = 1;
+  bool field2 = 2;
+  bool field3 = 3;
+  bool field4 = 4;
+  bool field5 = 5;
+  bool field6 = 6;
+  bool field7 = 7;
+  bool field8 = 8;
+}
+
+// Config3 message
+message Config3 {
+  bool field5 = 5;
+  bool field6 = 6;
+}
+
+// Response message
+message Response {
+  repeated Group groups = 2;
+}
+
+// Group message
+message Group {
+  int64 groupUin = 3;
+  GroupInfo info = 4;
+}
+
+// GroupInfo message
+message GroupInfo {
+  Member groupOwner = 1;
+  int64 memberMax = 3;
+  int64 memberCount = 4;
+  string groupName = 5;
+}
+
+// Member message
+message Member {
+  string uid = 2;
+}

@@ -390,7 +390,7 @@ func (c *QQClient) netLoop() {
 			resp.Body = m.Body
 		}
 		errCount = 0
-		c.debug("rev pkt: %v seq: %v", resp.CommandName, resp.SequenceID)
+		c.debug("rev pkt[%d] => Body: %v SSOReserveField: %s", resp.SequenceID, resp.CommandName, hex.EncodeToString(resp.SSOReserveField))
 		c.stat.PacketReceived.Add(1)
 		pkt := &network.Packet{
 			SequenceId:  uint16(resp.SequenceID),

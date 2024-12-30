@@ -13,6 +13,7 @@ message SSOReserveField {
   int32 network_type = 19;
   int32 ip_stack_type = 20;
   int32 message_type = 21;
+  bytes trace_info = 23;
   SsoSecureInfo sec_info = 24;
   int32 ntCoreVersion = 26;
   int32 sso_ip_origin = 28;

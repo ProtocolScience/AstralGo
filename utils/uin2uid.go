@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -40,6 +41,7 @@ type Uid2UinListCaches struct {
 	unSaved      []Uid2UinListCache
 	cacheFile    string
 	uidListSaver *time.Ticker
+	mu           sync.RWMutex
 }
 
 func NewUid2UinListCaches(bot *Uid2UinListConfig, cacheFilePath string) *Uid2UinListCaches {
@@ -64,6 +66,9 @@ func (caches *Uid2UinListCaches) startSaver() {
 }
 
 func (caches *Uid2UinListCaches) saveUIDCaches() {
+	caches.mu.Lock()
+	defer caches.mu.Unlock()
+
 	currentChanged := caches.takeCurrentUnSaved()
 	if len(currentChanged) > 0 {
 		file, err := os.OpenFile(caches.cacheFile, os.O_APPEND|os.O_WRONLY, 0644)
@@ -88,6 +93,9 @@ func (caches *Uid2UinListCaches) saveUIDCaches() {
 }
 
 func (caches *Uid2UinListCaches) loadCaches() {
+	caches.mu.Lock()
+	defer caches.mu.Unlock()
+
 	file, err := os.OpenFile(caches.cacheFile, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return
@@ -112,15 +120,16 @@ func (caches *Uid2UinListCaches) fastAdd(data Uid2UinListCache) {
 }
 
 func (caches *Uid2UinListCaches) takeCurrentUnSaved() []Uid2UinListCache {
-	var ret []Uid2UinListCache
-	for _, cache := range caches.unSaved {
-		ret = append(ret, cache)
-	}
+	ret := make([]Uid2UinListCache, len(caches.unSaved))
+	copy(ret, caches.unSaved)
 	caches.unSaved = nil
 	return ret
 }
 
 func (caches *Uid2UinListCaches) Add(uid string, uin int64) {
+	caches.mu.Lock()
+	defer caches.mu.Unlock()
+
 	if _, exists := caches.records[uin]; exists {
 		return
 	}
@@ -133,6 +142,9 @@ func (caches *Uid2UinListCaches) Add(uid string, uin int64) {
 }
 
 func (caches *Uid2UinListCaches) GetByUID(uid string) *Uid2UinListCache {
+	caches.mu.RLock()
+	defer caches.mu.RUnlock()
+
 	cache, exists := caches.uidMaps[uid]
 	if !exists {
 		return nil
@@ -141,6 +153,9 @@ func (caches *Uid2UinListCaches) GetByUID(uid string) *Uid2UinListCache {
 }
 
 func (caches *Uid2UinListCaches) GetByUIN(uin int64) *Uid2UinListCache {
+	caches.mu.RLock()
+	defer caches.mu.RUnlock()
+
 	cache, exists := caches.uinMaps[uin]
 	if !exists {
 		return &Uid2UinListCache{UID: strconv.FormatInt(uin, 10), UIN: uin}
