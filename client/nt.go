@@ -26,7 +26,7 @@ var NTDecoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"trpc.qq_new_tech.status_svc.StatusService.KickNT":       decodeKickNTPacket,
 	"trpc.msg.olpush.OlPushService.MsgPush":                  decodeOlPushServicePacket,
 	"trpc.msg.register_proxy.RegisterProxy.PushParams":       decodePushParamsPacket,
-	"trpc.msg.register_proxy.RegisterProxy.InfoSyncPush":     decodeInfoSyncPushPacket,
+	"trpc.msg.register_proxy.RegisterProxy.InfoSyncPush":     ignoreDecoder,
 	"OidbSvcTrpcTcp.0x9067_202":                              decodeRKeyGetResponse,
 	"OidbSvcTrpcTcp.0xfd4_1":                                 decodeNewFriendGroupListResponse,
 	"OidbSvcTrpcTcp.0xfe7_3":                                 decodeNewGetTroopMemberListResponse,
@@ -37,10 +37,6 @@ func init() {
 	for k, v := range NTDecoders {
 		decoders[k] = v
 	}
-}
-
-func decodeInfoSyncPushPacket(client *QQClient, packet *network.Packet) (any, error) {
-	return nil, nil
 }
 
 func decodePushParamsPacket(c *QQClient, pkt *network.Packet) (any, error) {

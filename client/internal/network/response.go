@@ -72,7 +72,7 @@ func (t *Transport) readSSOFrame(resp *Response, payload []byte) error {
 	}
 	resp.Message = head.ReadString()
 	resp.CommandName = head.ReadString()
-	if resp.CommandName == "Heartbeat.Alive" {
+	if resp.CommandName == "Heartbeat.Alive" || resp.CommandName == "StatSvc.QueryHB" {
 		return nil
 	}
 	_ = head.ReadInt32Bytes() // session id

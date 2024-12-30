@@ -97,11 +97,7 @@ var (
 func (c *Codec) Unmarshal(data []byte) (*Message, error) {
 	reader := binary.NewReader(data)
 	flag := reader.ReadByte()
-	if flag == 0x20 {
-		m := new(Message)
-		m.Body = []byte{}
-		return m, nil
-	} else if flag != 0x2 {
+	if flag != 0x2 {
 		return nil, ErrUnknownFlag
 	}
 	m := new(Message)
