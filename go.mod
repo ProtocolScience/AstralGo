@@ -1,4 +1,4 @@
-module github.com/Mrs4s/MiraiGo
+module github.com/ProtocolScience/AstralGo
 
 go 1.20
 
