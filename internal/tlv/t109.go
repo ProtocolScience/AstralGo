@@ -3,7 +3,7 @@ package tlv
 import (
 	"crypto/md5"
 
-	"github.com/Mrs4s/MiraiGo/binary"
+	"github.com/ProtocolScience/AstralGo/binary"
 )
 
 func T109(androidId []byte) []byte {

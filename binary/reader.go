@@ -6,7 +6,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/Mrs4s/MiraiGo/utils"
+	"github.com/ProtocolScience/AstralGo/utils"
 )
 
 type Reader struct {

@@ -1,6 +1,6 @@
 package tlv
 
-import "github.com/Mrs4s/MiraiGo/binary"
+import "github.com/ProtocolScience/AstralGo/binary"
 
 func T17C(code string) []byte {
 	return binary.NewWriterF(func(w *binary.Writer) {

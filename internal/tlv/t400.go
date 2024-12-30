@@ -3,7 +3,7 @@ package tlv
 import (
 	"time"
 
-	"github.com/Mrs4s/MiraiGo/binary"
+	"github.com/ProtocolScience/AstralGo/binary"
 )
 
 func T400(g []byte, uin int64, guid, dpwd []byte, j2, j3 int64, randSeed []byte) []byte {

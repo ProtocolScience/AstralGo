@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Mrs4s/MiraiGo/binary"
+	"github.com/ProtocolScience/AstralGo/binary"
 )
 
 func T106(uin, salt, appId, ssoVer uint32, passwordMd5 [16]byte, guidAvailable bool, guid, tgtgtKey []byte, wtf uint32) []byte {

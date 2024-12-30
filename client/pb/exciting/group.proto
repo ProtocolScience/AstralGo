@@ -1,6 +1,6 @@
 syntax = "proto2";
 
-option go_package = "github.com/Mrs4s/MiraiGo/client/pb/exciting";
+option go_package = "github.com/ProtocolScience/AstralGo/client/pb/exciting";
 
 message FileUploadExt {
   optional int32 unknown1 = 1;

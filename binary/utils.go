@@ -8,7 +8,7 @@ import (
 	"encoding/hex"
 	"net"
 
-	"github.com/Mrs4s/MiraiGo/utils"
+	"github.com/ProtocolScience/AstralGo/utils"
 )
 
 type GzipWriter struct {

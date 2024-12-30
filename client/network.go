@@ -11,10 +11,10 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Mrs4s/MiraiGo/client/internal/network"
-	"github.com/Mrs4s/MiraiGo/client/internal/oicq"
-	"github.com/Mrs4s/MiraiGo/message"
-	"github.com/Mrs4s/MiraiGo/utils"
+	"github.com/ProtocolScience/AstralGo/client/internal/network"
+	"github.com/ProtocolScience/AstralGo/client/internal/oicq"
+	"github.com/ProtocolScience/AstralGo/message"
+	"github.com/ProtocolScience/AstralGo/utils"
 )
 
 // ConnectionQualityInfo 客户端连接质量测试结果

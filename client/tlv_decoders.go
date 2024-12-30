@@ -3,14 +3,14 @@ package client
 import (
 	"crypto/md5"
 	"fmt"
-	"github.com/Mrs4s/MiraiGo/client/pb/cmd0x543"
-	"github.com/Mrs4s/MiraiGo/internal/proto"
+	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x543"
+	"github.com/ProtocolScience/AstralGo/internal/proto"
 	"time"
 
-	"github.com/Mrs4s/MiraiGo/client/internal/tlv"
-	"github.com/Mrs4s/MiraiGo/utils"
+	"github.com/ProtocolScience/AstralGo/client/internal/tlv"
+	"github.com/ProtocolScience/AstralGo/utils"
 
-	"github.com/Mrs4s/MiraiGo/binary"
+	"github.com/ProtocolScience/AstralGo/binary"
 )
 
 // --- tlv decoders for qq client ---

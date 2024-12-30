@@ -8,10 +8,10 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Mrs4s/MiraiGo/client/internal/network"
-	"github.com/Mrs4s/MiraiGo/client/pb/oidb"
-	"github.com/Mrs4s/MiraiGo/internal/proto"
-	"github.com/Mrs4s/MiraiGo/message"
+	"github.com/ProtocolScience/AstralGo/client/internal/network"
+	"github.com/ProtocolScience/AstralGo/client/pb/oidb"
+	"github.com/ProtocolScience/AstralGo/internal/proto"
+	"github.com/ProtocolScience/AstralGo/message"
 )
 
 type (

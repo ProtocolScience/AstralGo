@@ -10,13 +10,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Mrs4s/MiraiGo/binary"
-	"github.com/Mrs4s/MiraiGo/client/internal/network"
-	"github.com/Mrs4s/MiraiGo/client/pb/cmd0x3f6"
-	"github.com/Mrs4s/MiraiGo/client/pb/cmd0x6ff"
-	"github.com/Mrs4s/MiraiGo/client/pb/msg"
-	"github.com/Mrs4s/MiraiGo/internal/proto"
-	"github.com/Mrs4s/MiraiGo/utils"
+	"github.com/ProtocolScience/AstralGo/binary"
+	"github.com/ProtocolScience/AstralGo/client/internal/network"
+	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x3f6"
+	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x6ff"
+	"github.com/ProtocolScience/AstralGo/client/pb/msg"
+	"github.com/ProtocolScience/AstralGo/internal/proto"
+	"github.com/ProtocolScience/AstralGo/utils"
 )
 
 func init() {

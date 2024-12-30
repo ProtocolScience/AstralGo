@@ -1,6 +1,6 @@
 package client
 
-//go:generate go run github.com/Mrs4s/MiraiGo/internal/generator/c2c_switcher
+//go:generate go run github.com/ProtocolScience/AstralGo/internal/generator/c2c_switcher
 
 import (
 	"fmt"
@@ -8,11 +8,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Mrs4s/MiraiGo/binary"
-	"github.com/Mrs4s/MiraiGo/client/internal/network"
-	"github.com/Mrs4s/MiraiGo/client/pb"
-	"github.com/Mrs4s/MiraiGo/client/pb/msg"
-	"github.com/Mrs4s/MiraiGo/internal/proto"
+	"github.com/ProtocolScience/AstralGo/binary"
+	"github.com/ProtocolScience/AstralGo/client/internal/network"
+	"github.com/ProtocolScience/AstralGo/client/pb"
+	"github.com/ProtocolScience/AstralGo/client/pb/msg"
+	"github.com/ProtocolScience/AstralGo/internal/proto"
 )
 
 type (

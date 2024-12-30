@@ -4,7 +4,7 @@
 package message
 
 import (
-	system "github.com/Mrs4s/MiraiGo/client/pb/nt/system"
+	system "github.com/ProtocolScience/AstralGo/client/pb/nt/system"
 	proto "github.com/RomiChan/protobuf/proto"
 )
 

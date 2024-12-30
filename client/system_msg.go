@@ -1,9 +1,9 @@
 package client
 
 import (
-	"github.com/Mrs4s/MiraiGo/client/internal/network"
-	"github.com/Mrs4s/MiraiGo/client/pb/structmsg"
-	"github.com/Mrs4s/MiraiGo/internal/proto"
+	"github.com/ProtocolScience/AstralGo/client/internal/network"
+	"github.com/ProtocolScience/AstralGo/client/pb/structmsg"
+	"github.com/ProtocolScience/AstralGo/internal/proto"
 )
 
 type (

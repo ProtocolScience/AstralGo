@@ -11,7 +11,7 @@ CQHTTP 用户建议使用基于 [go-cqhttp](https://github.com/Mrs4s/go-cqhttp) 
 ## 使用方法
 
 ```bash
-go get -u github.com/Mrs4s/MiraiGo
+go get -u github.com/ProtocolScience/AstralGo
 ```
 
 ## 支持的功能

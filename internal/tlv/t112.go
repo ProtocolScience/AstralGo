@@ -3,7 +3,7 @@ package tlv
 import (
 	"strconv"
 
-	"github.com/Mrs4s/MiraiGo/binary"
+	"github.com/ProtocolScience/AstralGo/binary"
 )
 
 func T112(uin int64) []byte {

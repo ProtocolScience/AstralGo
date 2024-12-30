@@ -3,8 +3,8 @@ package client
 import (
 	"crypto/md5"
 	"fmt"
-	"github.com/Mrs4s/MiraiGo/client/pb/trpc"
-	"github.com/Mrs4s/MiraiGo/internal/proto"
+	"github.com/ProtocolScience/AstralGo/client/pb/trpc"
+	"github.com/ProtocolScience/AstralGo/internal/proto"
 	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"net/netip"
@@ -18,15 +18,15 @@ import (
 
 	"github.com/RomiChan/syncx"
 
-	"github.com/Mrs4s/MiraiGo/binary"
-	"github.com/Mrs4s/MiraiGo/client/internal/auth"
-	"github.com/Mrs4s/MiraiGo/client/internal/highway"
-	"github.com/Mrs4s/MiraiGo/client/internal/intern"
-	"github.com/Mrs4s/MiraiGo/client/internal/network"
-	"github.com/Mrs4s/MiraiGo/client/internal/oicq"
-	"github.com/Mrs4s/MiraiGo/client/pb/msg"
-	"github.com/Mrs4s/MiraiGo/message"
-	"github.com/Mrs4s/MiraiGo/utils"
+	"github.com/ProtocolScience/AstralGo/binary"
+	"github.com/ProtocolScience/AstralGo/client/internal/auth"
+	"github.com/ProtocolScience/AstralGo/client/internal/highway"
+	"github.com/ProtocolScience/AstralGo/client/internal/intern"
+	"github.com/ProtocolScience/AstralGo/client/internal/network"
+	"github.com/ProtocolScience/AstralGo/client/internal/oicq"
+	"github.com/ProtocolScience/AstralGo/client/pb/msg"
+	"github.com/ProtocolScience/AstralGo/message"
+	"github.com/ProtocolScience/AstralGo/utils"
 )
 
 type QQClient struct {

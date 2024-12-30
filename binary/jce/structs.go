@@ -5,7 +5,7 @@ type IJceStruct interface {
 	ReadFrom(*JceReader)
 }
 
-//go:generate go run github.com/Mrs4s/MiraiGo/internal/generator/jce_gen -file=structs.go -o structs_tobytes.go
+//go:generate go run github.com/ProtocolScience/AstralGo/internal/generator/jce_gen -file=structs.go -o structs_tobytes.go
 type (
 	RequestPacket struct {
 		IVersion     int16             `jceId:"1"`

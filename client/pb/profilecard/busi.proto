@@ -1,5 +1,5 @@
 syntax = "proto2";
-option go_package = "github.com/Mrs4s/MiraiGo/client/pb/profilecard";
+option go_package = "github.com/ProtocolScience/AstralGo/client/pb/profilecard";
 
 message BusiColor {
   optional int32 r = 1;

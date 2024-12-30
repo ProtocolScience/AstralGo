@@ -1,12 +1,12 @@
 package network
 
 import (
-	"github.com/Mrs4s/MiraiGo/binary"
-	"github.com/Mrs4s/MiraiGo/client/internal/auth"
-	"github.com/Mrs4s/MiraiGo/client/pb"
-	"github.com/Mrs4s/MiraiGo/internal/proto"
-	"github.com/Mrs4s/MiraiGo/utils"
-	"github.com/Mrs4s/MiraiGo/wrapper"
+	"github.com/ProtocolScience/AstralGo/binary"
+	"github.com/ProtocolScience/AstralGo/client/internal/auth"
+	"github.com/ProtocolScience/AstralGo/client/pb"
+	"github.com/ProtocolScience/AstralGo/internal/proto"
+	"github.com/ProtocolScience/AstralGo/utils"
+	"github.com/ProtocolScience/AstralGo/wrapper"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"strconv"

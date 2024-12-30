@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/Mrs4s/MiraiGo/client/pb/nt/message";
+option go_package = "github.com/ProtocolScience/AstralGo/client/pb/nt/message";
 
 message C2C {
   optional uint32 Uin = 1;

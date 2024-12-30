@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Mrs4s/MiraiGo/utils"
+	"github.com/ProtocolScience/AstralGo/utils"
 
-	"github.com/Mrs4s/MiraiGo/client/pb/notify"
+	"github.com/ProtocolScience/AstralGo/client/pb/notify"
 )
 
 type (

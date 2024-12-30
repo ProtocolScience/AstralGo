@@ -4,16 +4,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/Mrs4s/MiraiGo/client/pb/nt/media"
+	"github.com/ProtocolScience/AstralGo/client/pb/nt/media"
 	log "github.com/sirupsen/logrus"
 	"reflect"
 	"strconv"
 	"strings"
 
-	"github.com/Mrs4s/MiraiGo/binary"
-	"github.com/Mrs4s/MiraiGo/client/pb/msg"
-	"github.com/Mrs4s/MiraiGo/internal/proto"
-	"github.com/Mrs4s/MiraiGo/utils"
+	"github.com/ProtocolScience/AstralGo/binary"
+	"github.com/ProtocolScience/AstralGo/client/pb/msg"
+	"github.com/ProtocolScience/AstralGo/internal/proto"
+	"github.com/ProtocolScience/AstralGo/utils"
 )
 
 type IMessage interface {

@@ -8,12 +8,12 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Mrs4s/MiraiGo/client/internal/network"
-	"github.com/Mrs4s/MiraiGo/client/pb/channel"
-	"github.com/Mrs4s/MiraiGo/client/pb/cmd0x388"
-	"github.com/Mrs4s/MiraiGo/client/pb/msg"
-	"github.com/Mrs4s/MiraiGo/internal/proto"
-	"github.com/Mrs4s/MiraiGo/message"
+	"github.com/ProtocolScience/AstralGo/client/internal/network"
+	"github.com/ProtocolScience/AstralGo/client/pb/channel"
+	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x388"
+	"github.com/ProtocolScience/AstralGo/client/pb/msg"
+	"github.com/ProtocolScience/AstralGo/internal/proto"
+	"github.com/ProtocolScience/AstralGo/message"
 )
 
 func init() {

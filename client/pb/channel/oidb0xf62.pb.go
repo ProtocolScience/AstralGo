@@ -4,7 +4,7 @@
 package channel
 
 import (
-	msg "github.com/Mrs4s/MiraiGo/client/pb/msg"
+	msg "github.com/ProtocolScience/AstralGo/client/pb/msg"
 	proto "github.com/RomiChan/protobuf/proto"
 )
 
