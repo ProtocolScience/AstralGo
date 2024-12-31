@@ -1,5 +1,5 @@
 # MiraiGo
-qq-android 协议的golang实现 移植于 [mirai](https://github.com/mamoe/mirai)
+Android NT 协议的golang实现 移植于 [mirai](https://github.com/mamoe/mirai)
 
 ## 使用前声明
 本项目为协议实现，不推荐直接使用。
