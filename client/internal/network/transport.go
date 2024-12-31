@@ -32,6 +32,7 @@ var NTListCommands = []string{
 	"OidbSvcTrpcTcp.0xfd4_1",
 	"OidbSvcTrpcTcp.0xfe7_3",
 	"OidbSvcTrpcTcp.0xfe5_2",
+	"OidbSvcTrpcTcp.0xfe1_2",
 }
 
 var WhiteListCommands = []string{
@@ -177,7 +178,7 @@ func (t *Transport) packBody(req *Request, w *binary.Writer) {
 	} else {
 		messageType = 0
 	}
-	uidCache := utils.GlobalCaches.GetByUIN(req.Uin)
+	uidCache := utils.UIDGlobalCaches.GetByUIN(req.Uin)
 	m := &pb.SSOReserveField{
 		Flag:          1,
 		Qimei:         t.Device.QImei36,

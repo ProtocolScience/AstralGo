@@ -426,6 +426,18 @@ func (c *QQClient) init(tokenLogin bool) error {
 	return nil
 }
 
+func (c *QQClient) GetUINByUID(uid string) int64 {
+	query := utils.UIDGlobalCaches.GetByUID(uid)
+	if query == nil {
+		rsp, err := c.sendAndWait(c.buildUID2UINRequestPacket(uid))
+		if err != nil {
+			return 0
+		}
+		return rsp.(int64)
+	} else {
+		return query.UIN
+	}
+}
 func (c *QQClient) GenToken() []byte {
 	return binary.NewWriterF(func(w *binary.Writer) {
 		w.WriteUInt64(uint64(c.Uin))
@@ -527,7 +539,7 @@ func (c *QQClient) GetFriendList() (*FriendListResponse, error) {
 		}
 	}
 	for _, t := range r.List {
-		utils.GlobalCaches.Add(t.Uid, t.Uin)
+		utils.UIDGlobalCaches.Add(t.Uid, t.Uin)
 	}
 	r.TotalCount = int32(len(r.List))
 	return r, nil
@@ -677,7 +689,7 @@ func (c *QQClient) getGroupMembers(group *GroupInfo, interner *intern.StringInte
 				return list[i].Uin < list[j].Uin
 			})
 			for _, t := range list {
-				utils.GlobalCaches.Add(t.Uid, t.Uin)
+				utils.UIDGlobalCaches.Add(t.Uid, t.Uin)
 			}
 			return list, nil
 		}

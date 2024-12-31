@@ -113,7 +113,7 @@ func (c *QQClient) decodeT119(data, ek []byte) {
 
 	if m.Exists(0x543) {
 		if err := proto.Unmarshal(m[0x543], &rsp); err == nil {
-			utils.GlobalCaches.Add(rsp.Data.Account.Uid, c.Uin)
+			utils.UIDGlobalCaches.Add(rsp.Data.Account.Uid, c.Uin)
 		}
 	}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/ProtocolScience/AstralGo/client/internal/auth"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/media"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFD4_1"
+	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE1_2"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE5_2"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE7_3"
 	"github.com/ProtocolScience/AstralGo/client/pb/trpc"
@@ -1080,6 +1081,27 @@ func (c *QQClient) buildGroupMemberInfoRequestPacket(groupCode, uin int64) (uint
 	}
 	payload, _ := proto.Marshal(req)
 	return c.uniPacket("group_member_card.get_group_member_card_info", payload)
+}
+func (c *QQClient) buildUID2UINRequestPacket(uid string) (uint16, []byte) {
+	// Define the keys
+	keys := []int32{20002, 27394, 20009, 20031, 101, 103, 102, 20022, 20023, 20024, 24002,
+		27037, 27049, 20011, 20016, 20021, 20003, 20004, 20005, 20006, 20020, 20026, 24007,
+		104, 105, 42432, 42362, 41756, 41757, 42257, 27372, 42315, 107, 45160, 45161, 27406, 62026}
+
+	// Create an instance of Req
+	req := &oidbSvcTrpcTcp0xFE1_2.Req{
+		Uid:    uid, // Replace with actual UID
+		Field2: 0,
+		Keys:   make([]*oidbSvcTrpcTcp0xFE1_2.Key, len(keys)),
+	}
+	// Populate the Keys
+	for i, k := range keys {
+		req.Keys[i] = &oidbSvcTrpcTcp0xFE1_2.Key{Key: k}
+	}
+	// Serialize the request using Protobuf
+	b, _ := proto.Marshal(req)
+	payload := c.packOIDBPackage(0xfe1, 2, b)
+	return c.uniPacket("OidbSvcTrpcTcp.0xfe1_2", payload)
 }
 
 // MessageSvc.PbGetMsg

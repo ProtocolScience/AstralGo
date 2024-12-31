@@ -8,11 +8,11 @@ import (
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/media"
 	ntMsg "github.com/ProtocolScience/AstralGo/client/pb/nt/message"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFD4_1"
+	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE1_2"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE5_2"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE7_3"
 	"github.com/ProtocolScience/AstralGo/client/pb/trpc"
 	"github.com/ProtocolScience/AstralGo/internal/proto"
-	"github.com/ProtocolScience/AstralGo/utils"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"runtime/debug"
@@ -31,6 +31,7 @@ var NTDecoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"OidbSvcTrpcTcp.0xfd4_1":                                 decodeNewFriendGroupListResponse,
 	"OidbSvcTrpcTcp.0xfe7_3":                                 decodeNewGetTroopMemberListResponse,
 	"OidbSvcTrpcTcp.0xfe5_2":                                 decodeNewGetTroopListSimplyResponse,
+	"OidbSvcTrpcTcp.0xfe1_2":                                 decodeUID2UINResponse,
 }
 
 func init() {
@@ -38,7 +39,14 @@ func init() {
 		decoders[k] = v
 	}
 }
-
+func decodeUID2UINResponse(c *QQClient, pkt *network.Packet) (any, error) {
+	rsp := oidbSvcTrpcTcp0xFE1_2.Response{}
+	err := unpackOIDBPackage(pkt.Payload, &rsp)
+	if err != nil {
+		return 0, err
+	}
+	return rsp.Body.Uin, nil
+}
 func decodePushParamsPacket(c *QQClient, pkt *network.Packet) (any, error) {
 	rsp := trpc.TrpcPushParams{}
 	if err := proto.Unmarshal(pkt.Payload, &rsp); err != nil {
@@ -70,7 +78,7 @@ func decodeNewGetTroopListSimplyResponse(c *QQClient, pkt *network.Packet) (any,
 			Uin:            g.GroupUin,
 			Code:           g.GroupUin,
 			Name:           g.Info.GroupName,
-			OwnerUin:       utils.GlobalCaches.GetByUID(g.Info.GroupOwner.Uid).UIN,
+			OwnerUin:       c.GetUINByUID(g.Info.GroupOwner.Uid),
 			MemberCount:    uint16(g.Info.MemberCount),
 			MaxMemberCount: uint16(g.Info.MemberCount),
 			client:         c,

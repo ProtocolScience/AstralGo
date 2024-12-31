@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-var GlobalCaches *Uid2UinListCaches
+var UIDGlobalCaches *Uid2UinListCaches
 
 func init() {
 	bot := &Uid2UinListConfig{
@@ -25,7 +25,7 @@ func init() {
 			},
 		},
 	}
-	GlobalCaches = NewUid2UinListCaches(bot, "data/cache/uin2uid.txt")
+	UIDGlobalCaches = NewUid2UinListCaches(bot, "data/cache/uin2uid.txt")
 }
 
 type Uid2UinListCache struct {

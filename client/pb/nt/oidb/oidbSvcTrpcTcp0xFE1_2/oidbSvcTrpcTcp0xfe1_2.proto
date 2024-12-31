@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+option go_package = "github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE1_2";
+
+// Request message
+message Req {
+  string uid = 1;
+  int32 field2 = 2;
+  repeated Key keys = 3;
+}
+
+// Key message
+message Key {
+  int32 key = 1;
+}
+
+// Response message
+message Response {
+  ResponseBody body = 1;
+}
+
+// ResponseBody message
+message ResponseBody {
+  string uid = 1;
+  ResponseList map = 2;
+  int64 uin = 3;
+}
+
+// ResponseList message
+message ResponseList {
+  repeated ResponseList1 list1 = 1;
+  repeated ResponseList2 list2 = 2;
+}
+
+// ResponseList1 message
+message ResponseList1 {
+  int32 ids = 1;
+  int32 values = 2;
+}
+
+// ResponseList2 message
+message ResponseList2 {
+  int32 ids = 1;
+  string values = 2;
+}
