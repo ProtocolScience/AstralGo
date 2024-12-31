@@ -34,8 +34,8 @@ var NTListCommands = []string{
 	"OidbSvcTrpcTcp.0xfe5_2",
 	"OidbSvcTrpcTcp.0xfe1_2",
 }
-
-var WhiteListCommands = []string{
+var WhiteListCommands = []string{}
+var WhiteListCommandsDefault = []string{
 	"ConnAuthSvr.fast_qq_login",
 	"ConnAuthSvr.sdk_auth_api",
 	"ConnAuthSvr.sdk_auth_api_emp",
@@ -164,6 +164,16 @@ func (t *Transport) packBody(req *Request, w *binary.Writer) {
 	var sign []byte
 	var token []byte
 	var extra []byte
+
+	if len(WhiteListCommands) == 0 {
+		list, err := wrapper.WhiteListGet()
+		if err == nil {
+			WhiteListCommands = list
+		} else {
+			WhiteListCommands = WhiteListCommandsDefault
+		}
+	}
+
 	if listContains(req.CommandName, WhiteListCommands) {
 		var err error
 		sign, extra, token, err = t.PackSecSign(req)
@@ -267,6 +277,10 @@ func (t *Transport) PackPacket(req *Request) []byte {
 	case EncryptTypeEmptyKey:
 		emptyKey := make([]byte, 16)
 		body = binary.NewTeaCipher(emptyKey).Encrypt(body)
+	case EncryptTypeNoEncrypt:
+		//pass
+	default:
+		panic("unhandled default EncryptType case")
 	}
 	w.Write(body)
 	binary.PutWriter(w2)

@@ -2,6 +2,7 @@ package highway
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"runtime"
 	"sync"
@@ -24,6 +25,7 @@ const (
 type Addr struct {
 	IP   uint32
 	Port int
+	Time int64
 }
 
 func (a Addr) AsNetIP() net.IP {
@@ -66,9 +68,19 @@ func (s *Session) AddrLength() int {
 func (s *Session) AppendAddr(ip, port uint32) {
 	s.addrMu.Lock()
 	defer s.addrMu.Unlock()
+	curTime := time.Now().Unix()
 	addr := Addr{
 		IP:   ip,
 		Port: int(port),
+		Time: curTime,
+	}
+	for i, t := range s.SsoAddr {
+		if curTime-t.Time > 86400 {
+			s.SsoAddr = append(s.SsoAddr[:i], s.SsoAddr[i+1:]...)
+		}
+		if t.Port == addr.Port && t.IP == addr.IP {
+			return //duplicated
+		}
 	}
 	s.SsoAddr = append(s.SsoAddr, addr)
 }
@@ -242,7 +254,10 @@ func (s *Session) selectConn() (pc persistConn, err error) {
 			return
 		}
 	}
-
+	if len(s.SsoAddr) == 0 {
+		log.Error("No Highway Connection Addr Found!")
+		return
+	}
 	try := 0
 	for {
 		addr := s.nextAddr()
@@ -252,6 +267,7 @@ func (s *Session) selectConn() (pc persistConn, err error) {
 		}
 		try++
 		if try > 5 {
+			log.Error("Highway Connection Connection Failure.")
 			break
 		}
 	}

@@ -2,8 +2,10 @@ package client
 
 import (
 	"encoding/hex"
+	"fmt"
 	"github.com/ProtocolScience/AstralGo/binary"
 	"github.com/ProtocolScience/AstralGo/client/internal/network"
+	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x6ff"
 	oldMsg "github.com/ProtocolScience/AstralGo/client/pb/msg"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/media"
 	ntMsg "github.com/ProtocolScience/AstralGo/client/pb/nt/message"
@@ -32,6 +34,7 @@ var NTDecoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"OidbSvcTrpcTcp.0xfe7_3":                                 decodeNewGetTroopMemberListResponse,
 	"OidbSvcTrpcTcp.0xfe5_2":                                 decodeNewGetTroopListSimplyResponse,
 	"OidbSvcTrpcTcp.0xfe1_2":                                 decodeUID2UINResponse,
+	"HttpConn.0x6ff_501":                                     decodeConnKeyResponse,
 }
 
 func init() {
@@ -39,6 +42,37 @@ func init() {
 		decoders[k] = v
 	}
 }
+
+func decodeConnKeyResponse(c *QQClient, pkt *network.Packet) (any, error) {
+	rsp := cmd0x6ff.C501RspBody{}
+	if err := proto.Unmarshal(pkt.Payload, &rsp); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal protobuf message")
+	}
+	if c.QiDian != nil {
+		c.QiDian.bigDataReqSession = &bigDataSessionInfo{
+			SigSession: rsp.RspBody.SigSession,
+			SessionKey: rsp.RspBody.SessionKey,
+		}
+		for _, srv := range rsp.RspBody.Addrs {
+			if srv.ServiceType.Unwrap() == 1 {
+				for _, addr := range srv.Addrs {
+					c.QiDian.bigDataReqAddrs = append(c.QiDian.bigDataReqAddrs, fmt.Sprintf("%v:%v", binary.UInt32ToIPV4Address(addr.Ip.Unwrap()), addr.Port.Unwrap()))
+				}
+			}
+		}
+	}
+	c.highwaySession.SigSession = rsp.RspBody.SigSession
+	c.highwaySession.SessionKey = rsp.RspBody.SessionKey
+	for _, srv := range rsp.RspBody.Addrs {
+		if srv.ServiceType.Unwrap() == 10 {
+			for _, addr := range srv.Addrs {
+				c.highwaySession.AppendAddr(addr.Ip.Unwrap(), addr.Port.Unwrap())
+			}
+		}
+	}
+	return nil, nil
+}
+
 func decodeUID2UINResponse(c *QQClient, pkt *network.Packet) (any, error) {
 	rsp := oidbSvcTrpcTcp0xFE1_2.Response{}
 	err := unpackOIDBPackage(pkt.Payload, &rsp)

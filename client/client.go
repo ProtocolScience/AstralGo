@@ -417,8 +417,7 @@ func (c *QQClient) init(tokenLogin bool) error {
 	}
 	_ = c.RefreshStatus()
 	if c.version().Protocol == auth.QiDian {
-		_, _ = c.sendAndWait(c.buildLoginExtraPacket())     // 小登录
-		_, _ = c.sendAndWait(c.buildConnKeyRequestPacket()) // big data key 如果等待 config push 的话时间来不及
+		_, _ = c.sendAndWait(c.buildLoginExtraPacket()) // 小登录
 	}
 	seq, pkt := c.buildGetMessageRequestPacket(msg.SyncFlag_START, time.Now().Unix())
 	_, _ = c.sendAndWait(seq, pkt, network.RequestParams{"used_reg_proxy": true, "init": true})
@@ -941,6 +940,9 @@ func (c *QQClient) doHeartbeat() {
 	c.heartbeatEnabled = true
 	times := 0
 	for c.Online.Load() {
+		if len(c.highwaySession.SsoAddr) == 0 {
+			_, _ = c.sendAndWait(c.buildConnKeyRequestPacket()) // 高速通道不存在，请求获取高速通道地址。
+		}
 		time.Sleep(time.Second * 60)
 		//time.Sleep(time.Second * 1)
 		seq := c.nextSeq()

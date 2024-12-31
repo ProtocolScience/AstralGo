@@ -16,6 +16,10 @@ message SubCmd0x501ReqBody {
   optional uint32 requestFlag = 6;
   repeated uint32 serviceTypes = 7;
   optional uint32 bid = 8;
+  optional uint32 field9 = 9;
+  optional uint32 field10 = 10;
+  optional uint32 field11 = 11;
+  optional string ver = 15;
 }
 message SubCmd0x501RspBody {
   optional bytes sigSession = 1;

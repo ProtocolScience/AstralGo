@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/ProtocolScience/AstralGo/client/internal/auth"
+	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x6ff"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/media"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFD4_1"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE1_2"
@@ -1081,6 +1082,40 @@ func (c *QQClient) buildGroupMemberInfoRequestPacket(groupCode, uin int64) (uint
 	}
 	payload, _ := proto.Marshal(req)
 	return c.uniPacket("group_member_card.get_group_member_card_info", payload)
+}
+func (c *QQClient) buildConnKeyRequestPacket() (uint16, []byte) {
+	if c.QiDian == nil {
+		req := &cmd0x6ff.C501ReqBody{
+			ReqBody: &cmd0x6ff.SubCmd0X501ReqBody{
+				Uin:            proto.Uint64(uint64(c.Uin)),
+				IdcId:          proto.Uint32(0),
+				Appid:          proto.Uint32(16),
+				LoginSigType:   proto.Uint32(1),
+				LoginSigTicket: c.sig.TGT,
+				RequestFlag:    proto.Uint32(3),
+				ServiceTypes:   []uint32{1, 5, 10, 21},
+				Field9:         proto.Uint32(2),
+				Field10:        proto.Uint32(9),
+				Field11:        proto.Uint32(8),
+				Ver:            proto.Some("1.0.1"),
+			},
+		}
+		payload, _ := proto.Marshal(req)
+		return c.uniPacket("HttpConn.0x6ff_501", payload)
+	} else { //企点老实现
+		req := &cmd0x6ff.C501ReqBody{
+			ReqBody: &cmd0x6ff.SubCmd0X501ReqBody{
+				Uin:          proto.Uint64(uint64(c.Uin)),
+				IdcId:        proto.Uint32(0),
+				Appid:        proto.Uint32(16),
+				LoginSigType: proto.Uint32(1),
+				RequestFlag:  proto.Uint32(3),
+				ServiceTypes: []uint32{1},
+			},
+		}
+		payload, _ := proto.Marshal(req)
+		return c.uniPacket("HttpConn.0x6ff_501", payload)
+	}
 }
 func (c *QQClient) buildUID2UINRequestPacket(uid string) (uint16, []byte) {
 	// Define the keys

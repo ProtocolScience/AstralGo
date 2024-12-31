@@ -26,6 +26,10 @@ type SubCmd0X501ReqBody struct {
 	RequestFlag    proto.Option[uint32] `protobuf:"varint,6,opt"`
 	ServiceTypes   []uint32             `protobuf:"varint,7,rep"`
 	Bid            proto.Option[uint32] `protobuf:"varint,8,opt"`
+	Field9         proto.Option[uint32] `protobuf:"varint,9,opt"`
+	Field10        proto.Option[uint32] `protobuf:"varint,10,opt"`
+	Field11        proto.Option[uint32] `protobuf:"varint,11,opt"`
+	Ver            proto.Option[string] `protobuf:"bytes,15,opt"`
 }
 
 type SubCmd0X501RspBody struct {

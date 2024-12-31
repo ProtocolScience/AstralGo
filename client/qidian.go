@@ -21,7 +21,6 @@ import (
 
 func init() {
 	decoders["qidianservice.69"] = decodeLoginExtraResponse
-	decoders["HttpConn.0x6ff_501"] = decodeConnKeyResponse
 }
 
 // getQiDianAddressDetailList 外部联系人列表
@@ -89,21 +88,6 @@ func (c *QQClient) buildLoginExtraPacket() (uint16, []byte) {
 	return c.uniPacket("qidianservice.69", payload)
 }
 
-func (c *QQClient) buildConnKeyRequestPacket() (uint16, []byte) {
-	req := &cmd0x6ff.C501ReqBody{
-		ReqBody: &cmd0x6ff.SubCmd0X501ReqBody{
-			Uin:          proto.Uint64(uint64(c.Uin)),
-			IdcId:        proto.Uint32(0),
-			Appid:        proto.Uint32(16),
-			LoginSigType: proto.Uint32(1),
-			RequestFlag:  proto.Uint32(3),
-			ServiceTypes: []uint32{1},
-		},
-	}
-	payload, _ := proto.Marshal(req)
-	return c.uniPacket("HttpConn.0x6ff_501", payload)
-}
-
 func (c *QQClient) bigDataRequest(subCmd uint32, req proto.Message) ([]byte, error) {
 	if c.QiDian.bigDataReqSession == nil {
 		return nil, errors.New("please call conn key request method before")
@@ -167,28 +151,6 @@ func decodeLoginExtraResponse(c *QQClient, pkt *network.Packet) (any, error) {
 		MasterUin:  int64(rsp.SubcmdLoginProcessCompleteRspBody.Corpuin.Unwrap()),
 		ExtName:    rsp.SubcmdLoginProcessCompleteRspBody.ExtuinName.Unwrap(),
 		CreateTime: int64(rsp.SubcmdLoginProcessCompleteRspBody.OpenAccountTime.Unwrap()),
-	}
-	return nil, nil
-}
-
-func decodeConnKeyResponse(c *QQClient, pkt *network.Packet) (any, error) {
-	rsp := cmd0x6ff.C501RspBody{}
-	if err := proto.Unmarshal(pkt.Payload, &rsp); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal protobuf message")
-	}
-	if c.QiDian == nil {
-		return nil, errors.New("please call login extra before")
-	}
-	c.QiDian.bigDataReqSession = &bigDataSessionInfo{
-		SigSession: rsp.RspBody.SigSession,
-		SessionKey: rsp.RspBody.SessionKey,
-	}
-	for _, srv := range rsp.RspBody.Addrs {
-		if srv.ServiceType.Unwrap() == 1 {
-			for _, addr := range srv.Addrs {
-				c.QiDian.bigDataReqAddrs = append(c.QiDian.bigDataReqAddrs, fmt.Sprintf("%v:%v", binary.UInt32ToIPV4Address(addr.Ip.Unwrap()), addr.Port.Unwrap()))
-			}
-		}
 	}
 	return nil, nil
 }

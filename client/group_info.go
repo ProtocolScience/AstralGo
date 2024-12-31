@@ -66,7 +66,7 @@ type (
 
 func init() {
 	decoders["SummaryCard.ReqSearch"] = decodeGroupSearchResponse
-	decoders["OidbSvc.0x88d_0"] = decodeGroupInfoResponse
+	decoders["OidbSvcTrpcTcp.0x88d_0"] = decodeGroupInfoResponse
 }
 
 func (c *QQClient) GetGroupInfo(groupCode int64) (*GroupInfo, error) {
@@ -77,7 +77,7 @@ func (c *QQClient) GetGroupInfo(groupCode int64) (*GroupInfo, error) {
 	return i.(*GroupInfo), nil
 }
 
-// OidbSvc.0x88d_0
+// OidbSvcTrpcTcp.0x88d_0
 func (c *QQClient) buildGroupInfoRequestPacket(groupCode int64) (uint16, []byte) {
 	body := &oidb.D88DReqBody{
 		AppId: proto.Uint32(c.version().AppId),
@@ -116,7 +116,7 @@ func (c *QQClient) buildGroupInfoRequestPacket(groupCode int64) (uint16, []byte)
 		PcClientVersion: proto.Uint32(0),
 	}
 	payload := c.packOIDBPackageProto(2189, 0, body)
-	return c.uniPacket("OidbSvc.0x88d_0", payload)
+	return c.uniPacket("OidbSvcTrpcTcp.0x88d_0", payload)
 }
 
 // SearchGroupByKeyword 通过关键词搜索陌生群组
@@ -219,7 +219,7 @@ func decodeGroupSearchResponse(_ *QQClient, pkt *network.Packet) (any, error) {
 	return nil, nil
 }
 
-// OidbSvc.0x88d_0
+// OidbSvcTrpcTcp.0x88d_0
 func decodeGroupInfoResponse(c *QQClient, pkt *network.Packet) (any, error) {
 	rsp := oidb.D88DRspBody{}
 	err := unpackOIDBPackage(pkt.Payload, &rsp)
