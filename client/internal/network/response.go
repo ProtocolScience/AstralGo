@@ -23,6 +23,7 @@ type Response struct {
 }
 
 var (
+	ErrChatBanned        = errors.New("your account has been limited by server")
 	ErrSessionExpired    = errors.New("session expired")
 	ErrPacketDropped     = errors.New("packet dropped")
 	ErrInvalidPacketType = errors.New("invalid packet type")
@@ -67,6 +68,8 @@ func (t *Transport) readSSOFrame(resp *Response, payload []byte) error {
 		// ok
 	case -10008:
 		return errors.WithStack(ErrSessionExpired)
+	case -10201: //社交限制
+		return errors.WithStack(ErrChatBanned)
 	default:
 		return errors.Errorf("return code unsuccessful: %d", retCode)
 	}

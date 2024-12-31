@@ -371,6 +371,11 @@ func (c *QQClient) netLoop() {
 				c.Disconnect()
 				go c.DisconnectedEvent.dispatch(c, &DisconnectedEvent{Message: "session expired", Reconnection: true})
 				continue
+			} else if errors.Is(err, network.ErrChatBanned) {
+				c.error("你号触发违规被限制了，所以不能说话，请上手机客户端查看情况。")
+				c.Disconnect()
+				go c.DisconnectedEvent.dispatch(c, &DisconnectedEvent{Message: "your chat permission has been stripped", Reconnection: false})
+				continue
 			}
 			errCount++
 			if errCount > 2 {
