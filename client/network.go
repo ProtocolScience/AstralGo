@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/hex"
 	"net"
 	"net/netip"
@@ -99,7 +100,14 @@ func (c *QQClient) initServers() {
 	if err == nil && len(sso) > 0 {
 		c.servers = append(sso, c.servers...)
 	}
-	adds, err := net.LookupIP("msfwifi.3g.qq.com") // host servers
+
+	// Create a context with a 5-second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Perform the DNS lookup with the context
+	adds, err := net.DefaultResolver.LookupIP(ctx, "ip", "msfwifi.3g.qq.com")
+
 	if err == nil && len(adds) > 0 {
 		var hostAddrs []netip.AddrPort
 		for _, addr := range adds {
@@ -112,12 +120,70 @@ func (c *QQClient) initServers() {
 	}
 	if len(c.servers) == 0 {
 		c.servers = []netip.AddrPort{ // default servers
-			netip.AddrPortFrom(netip.AddrFrom4([4]byte{42, 81, 172, 81}), 80),
-			netip.AddrPortFrom(netip.AddrFrom4([4]byte{114, 221, 148, 59}), 14000),
-			netip.AddrPortFrom(netip.AddrFrom4([4]byte{42, 81, 172, 147}), 443),
-			netip.AddrPortFrom(netip.AddrFrom4([4]byte{125, 94, 60, 146}), 80),
-			netip.AddrPortFrom(netip.AddrFrom4([4]byte{114, 221, 144, 215}), 80),
-			netip.AddrPortFrom(netip.AddrFrom4([4]byte{42, 81, 172, 22}), 80),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{43, 135, 106, 161}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{43, 154, 240, 13}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{111, 30, 187, 201}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{42, 81, 184, 206}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{119, 147, 190, 138}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{111, 206, 149, 85}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{39, 156, 126, 229}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{49, 7, 253, 65}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{49, 7, 253, 214}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{220, 194, 118, 236}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{125, 39, 196, 158}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{183, 47, 103, 84}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{222, 94, 109, 78}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{36, 155, 213, 142}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{42, 81, 184, 82}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{220, 194, 118, 230}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{120, 232, 130, 46}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{42, 81, 193, 250}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{120, 232, 31, 250}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{49, 7, 253, 177}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{111, 206, 149, 168}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{60, 29, 238, 126}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{120, 232, 31, 164}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{120, 241, 130, 195}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{180, 101, 246, 123}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{36, 155, 205, 252}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{36, 155, 163, 25}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{116, 147, 17, 39}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{121, 229, 94, 199}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{39, 156, 144, 113}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{111, 30, 182, 254}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{39, 156, 126, 178}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{120, 232, 31, 177}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{183, 47, 102, 213}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{153, 3, 46, 25}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{112, 86, 231, 155}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{60, 29, 242, 161}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{182, 50, 15, 44}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{157, 148, 57, 39}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{221, 238, 41, 89}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{157, 148, 54, 141}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{153, 3, 46, 82}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{157, 148, 54, 16}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{153, 3, 46, 86}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{36, 155, 163, 66}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{14, 22, 9, 53}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{157, 255, 5, 104}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{111, 30, 187, 227}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{117, 62, 243, 221}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{111, 30, 187, 245}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{157, 148, 54, 20}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{36, 155, 187, 71}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{120, 241, 130, 216}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{117, 62, 242, 155}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{36, 155, 245, 16}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{42, 81, 179, 212}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{157, 148, 54, 28}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{49, 7, 253, 58}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{121, 229, 94, 224}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{157, 148, 55, 96}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{36, 155, 207, 230}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{183, 2, 144, 33}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{180, 109, 192, 57}), 8080),
+			netip.AddrPortFrom(netip.AddrFrom4([4]byte{123, 125, 0, 210}), 8080),
 		}
 	}
 	pings := make([]int64, len(c.servers))
