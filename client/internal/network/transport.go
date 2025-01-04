@@ -22,19 +22,8 @@ type Transport struct {
 	// conn *TCPClient
 }
 
-var NTListCommands = []string{
-	"trpc.msg.register_proxy.RegisterProxy.SsoInfoSync",
-	"trpc.qq_new_tech.status_svc.StatusService.SsoHeartBeat",
-	"trpc.qq_new_tech.status_svc.StatusService.UnRegister",
-	"trpc.qq_new_tech.status_svc.StatusService.KickNT",
-	"trpc.msg.olpush.OlPushService.MsgPush",
-	"OidbSvcTrpcTcp.0x9067_202",
-	"OidbSvcTrpcTcp.0xfd4_1",
-	"OidbSvcTrpcTcp.0xfe7_3",
-	"OidbSvcTrpcTcp.0xfe5_2",
-	"OidbSvcTrpcTcp.0xfe1_2",
-}
-var WhiteListCommands = []string{}
+var NTListCommands []string
+var WhiteListCommands []string
 var WhiteListCommandsDefault = []string{
 	"ConnAuthSvr.fast_qq_login",
 	"ConnAuthSvr.sdk_auth_api",

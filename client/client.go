@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/md5"
 	"fmt"
+	"github.com/ProtocolScience/AstralGo/client/nt"
 	"github.com/ProtocolScience/AstralGo/client/pb/trpc"
 	"github.com/ProtocolScience/AstralGo/internal/proto"
 	log "github.com/sirupsen/logrus"
@@ -126,7 +127,7 @@ type QQClient struct {
 	highwayApplyUpSeq      atomic.Int32
 
 	groupListLock     sync.Mutex
-	RKey              *RKeyMap
+	RKey              nt.RKeyMap
 	firstLoginSucceed bool
 }
 
@@ -232,7 +233,7 @@ func (c *QQClient) Device() *DeviceInfo {
 func (c *QQClient) UseDevice(info *auth.Device) {
 	c.transport.Version = info.Protocol.Version()
 	c.transport.Device = info
-	c.highwaySession.AppID = int32(c.version().AppId)
+	c.highwaySession.AppID = c.version().AppId
 	c.sig.Ksid = []byte(fmt.Sprintf("|%s|A8.2.7.27f6ea96", info.IMEI))
 }
 
@@ -772,9 +773,9 @@ func (c *QQClient) SolveFriendRequest(req *NewFriendRequest, accept bool) {
 	_, pkt := c.buildSystemMsgFriendActionPacket(req.RequestId, req.RequesterUin, accept)
 	_ = c.sendPacket(pkt)
 }
-func (c *QQClient) GetRKey() (*RKeyMap, error) {
+func (c *QQClient) GetRKey() (*nt.RKeyMap, error) {
 	if c.RKey != nil {
-		for _, v := range *c.RKey {
+		for _, v := range c.RKey {
 			if v.ExpireTime < uint64(time.Now().Unix()) {
 				c.RKey = nil
 				log.Warn("rkey expired. refresh...")
@@ -785,26 +786,26 @@ func (c *QQClient) GetRKey() (*RKeyMap, error) {
 	if c.RKey == nil {
 		data, err := c.sendAndWait(c.BuildFetchRKeyReq())
 		if err == nil {
-			c.RKey = data.(*RKeyMap)
+			c.RKey = data.(nt.RKeyMap)
 		}
 	}
 	if c.RKey == nil {
-		c.RKey = &RKeyMap{
-			message.BusinessGroupImage: &RKeyInfo{
-				RKeyType:   GroupRKey,
+		c.RKey = nt.RKeyMap{
+			nt.GroupImageRKey: &nt.RKeyInfo{
+				RKeyType:   nt.GroupImageRKey,
 				RKey:       "",
 				ExpireTime: 0,
 				CreateTime: 0,
 			},
-			message.BusinessFriendImage: &RKeyInfo{
-				RKeyType:   FriendRKey,
+			nt.FriendImageRKey: &nt.RKeyInfo{
+				RKeyType:   nt.FriendImageRKey,
 				RKey:       "",
 				ExpireTime: 0,
 				CreateTime: 0,
 			},
 		}
 	}
-	return c.RKey, nil
+	return &c.RKey, nil
 }
 func (c *QQClient) getSKey() string {
 	if c.sig.SKeyExpiredTime < time.Now().Unix() && len(c.sig.G) > 0 {

@@ -42,7 +42,7 @@ func (a Addr) empty() bool {
 
 type Session struct {
 	Uin        string
-	AppID      int32
+	AppID      uint32
 	SigSession []byte
 	SessionKey []byte
 
@@ -96,8 +96,8 @@ func (s *Session) sendHeartbreak(conn net.Conn) error {
 			Uin:       s.Uin,
 			Command:   _REQ_CMD_HEART_BREAK,
 			Seq:       s.nextSeq(),
-			Appid:     s.AppID,
-			Dataflag:  4096,
+			Appid:     int32(s.AppID),
+			Dataflag:  16,
 			CommandId: 0,
 			LocaleId:  2052,
 		},

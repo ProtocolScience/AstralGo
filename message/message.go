@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/ProtocolScience/AstralGo/client/nt"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/media"
 	log "github.com/sirupsen/logrus"
 	"reflect"
@@ -107,15 +108,6 @@ const (
 	Video                       // 视频
 	LightApp                    // 轻应用
 	RedBag                      // 红包
-)
-
-const (
-	BusinessGroupImage  = 20
-	BusinessFriendImage = 10
-	BusinessGroupVideo  = 21
-	BusinessFriendVideo = 11
-	BusinessGroupAudio  = 22
-	BusinessFriendAudio = 12
 )
 
 func (s *Sender) IsAnonymous() bool {
@@ -698,7 +690,7 @@ func ParseMessageElems(elems []*msg.Elem) []IMessageElement {
 				}
 				index := extra.MsgInfoBody[0].Index
 				switch businessType {
-				case BusinessFriendImage, BusinessGroupImage: // img
+				case nt.BusinessFriendImage, nt.BusinessGroupImage: // img
 					/*
 						res = append(res, &ImageElement{
 							ImageID:  index.Info.FileName,
@@ -721,7 +713,7 @@ func ParseMessageElems(elems []*msg.Elem) []IMessageElement {
 					//url :=
 					hash, err := hex.DecodeString(index.Info.FileHash)
 					if err == nil {
-						if businessType == BusinessFriendImage {
+						if businessType == nt.BusinessFriendImage {
 							res = append(res, &FriendImageElement{
 								ImageId: index.Info.FileName,
 								Size:    int32(index.Info.FileSize),

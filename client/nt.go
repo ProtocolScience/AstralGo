@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ProtocolScience/AstralGo/binary"
 	"github.com/ProtocolScience/AstralGo/client/internal/network"
+	"github.com/ProtocolScience/AstralGo/client/nt"
 	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x6ff"
 	oldMsg "github.com/ProtocolScience/AstralGo/client/pb/msg"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/media"
@@ -22,6 +23,7 @@ import (
 )
 
 var NTDecoders = map[string]func(*QQClient, *network.Packet) (any, error){
+	"HttpConn.0x6ff_501": decodeConnKeyResponse,
 	"trpc.msg.register_proxy.RegisterProxy.SsoInfoSync":      decodeClientRegisterResponse,
 	"trpc.qq_new_tech.status_svc.StatusService.SsoHeartBeat": decodeSsoHeartBeatResponse,
 	"trpc.qq_new_tech.status_svc.StatusService.UnRegister":   decodeUnregisterPacket,
@@ -29,17 +31,23 @@ var NTDecoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"trpc.msg.olpush.OlPushService.MsgPush":                  decodeOlPushServicePacket,
 	"trpc.msg.register_proxy.RegisterProxy.PushParams":       decodePushParamsPacket,
 	"trpc.msg.register_proxy.RegisterProxy.InfoSyncPush":     ignoreDecoder,
-	"OidbSvcTrpcTcp.0x9067_202":                              decodeRKeyGetResponse,
-	"OidbSvcTrpcTcp.0xfd4_1":                                 decodeNewFriendGroupListResponse,
-	"OidbSvcTrpcTcp.0xfe7_3":                                 decodeNewGetTroopMemberListResponse,
-	"OidbSvcTrpcTcp.0xfe5_2":                                 decodeNewGetTroopListSimplyResponse,
-	"OidbSvcTrpcTcp.0xfe1_2":                                 decodeUID2UINResponse,
-	"HttpConn.0x6ff_501":                                     decodeConnKeyResponse,
+	"OidbSvcTrpcTcp.0xfd4_1":                                 decodeNewTechFriendGroupListResponse,
+	"OidbSvcTrpcTcp.0xfe7_3":                                 decodeNewTechGetTroopMemberListResponse,
+	"OidbSvcTrpcTcp.0xfe5_2":                                 decodeNewTechGetTroopListSimplyResponse,
+	"OidbSvcTrpcTcp.0xfe1_2":                                 decodeNewTechUID2UINResponse,
+	"OidbSvcTrpcTcp.0x11e9_100":                              decodeNewTechMediaResponse,
+	"OidbSvcTrpcTcp.0x11ea_100":                              decodeNewTechMediaResponse,
+	"OidbSvcTrpcTcp.0x11c5_100":                              decodeNewTechMediaResponse,
+	"OidbSvcTrpcTcp.0x11c4_100":                              decodeNewTechMediaResponse,
+	"OidbSvcTrpcTcp.0x126d_100":                              decodeNewTechMediaResponse,
+	"OidbSvcTrpcTcp.0x126e_100":                              decodeNewTechMediaResponse,
+	"OidbSvcTrpcTcp.0x9067_202":                              decodeNewTechMediaResponse,
 }
 
 func init() {
 	for k, v := range NTDecoders {
 		decoders[k] = v
+		network.NTListCommands = append(network.NTListCommands, k)
 	}
 }
 
@@ -64,7 +72,7 @@ func decodeConnKeyResponse(c *QQClient, pkt *network.Packet) (any, error) {
 	c.highwaySession.SigSession = rsp.RspBody.SigSession
 	c.highwaySession.SessionKey = rsp.RspBody.SessionKey
 	for _, srv := range rsp.RspBody.Addrs {
-		if srv.ServiceType.Unwrap() == 10 {
+		if srv.ServiceType.Unwrap() == 1 {
 			for _, addr := range srv.Addrs {
 				c.highwaySession.AppendAddr(addr.Ip.Unwrap(), addr.Port.Unwrap())
 			}
@@ -73,7 +81,7 @@ func decodeConnKeyResponse(c *QQClient, pkt *network.Packet) (any, error) {
 	return nil, nil
 }
 
-func decodeUID2UINResponse(c *QQClient, pkt *network.Packet) (any, error) {
+func decodeNewTechUID2UINResponse(c *QQClient, pkt *network.Packet) (any, error) {
 	rsp := oidbSvcTrpcTcp0xFE1_2.Response{}
 	err := unpackOIDBPackage(pkt.Payload, &rsp)
 	if err != nil {
@@ -100,7 +108,7 @@ func decodePushParamsPacket(c *QQClient, pkt *network.Packet) (any, error) {
 }
 
 // 只能读取1000个以内的群
-func decodeNewGetTroopListSimplyResponse(c *QQClient, pkt *network.Packet) (any, error) {
+func decodeNewTechGetTroopListSimplyResponse(c *QQClient, pkt *network.Packet) (any, error) {
 	rsp := oidbSvcTrpcTcp0xFE5_2.Response{}
 	err := unpackOIDBPackage(pkt.Payload, &rsp)
 	if err != nil {
@@ -120,7 +128,7 @@ func decodeNewGetTroopListSimplyResponse(c *QQClient, pkt *network.Packet) (any,
 	}
 	return l, nil
 }
-func decodeNewGetTroopMemberListResponse(_ *QQClient, pkt *network.Packet) (any, error) {
+func decodeNewTechGetTroopMemberListResponse(_ *QQClient, pkt *network.Packet) (any, error) {
 	rsp := oidbSvcTrpcTcp0xFE7_3.Response{}
 	err := unpackOIDBPackage(pkt.Payload, &rsp)
 	if err != nil {
@@ -157,11 +165,11 @@ func decodeNewGetTroopMemberListResponse(_ *QQClient, pkt *network.Packet) (any,
 		list:      l,
 	}, nil
 }
-func decodeNewFriendGroupListResponse(_ *QQClient, pkt *network.Packet) (any, error) {
+func decodeNewTechFriendGroupListResponse(_ *QQClient, pkt *network.Packet) (any, error) {
 	rsp := oidbSvcTrpcTcp0xFD4_1.Response{}
 	err := unpackOIDBPackage(pkt.Payload, &rsp)
 	if err != nil {
-		log.Warn("decodeNewFriendGroupListResponse failed! Hex: " + hex.EncodeToString(pkt.Payload) + ",err: " + err.Error())
+		log.Warn("decodeNewTechFriendGroupListResponse failed! Hex: " + hex.EncodeToString(pkt.Payload) + ",err: " + err.Error())
 		return nil, err
 	}
 	l := make([]*FriendInfo, 0, len(rsp.Friends))
@@ -256,10 +264,10 @@ func decodeRKeyGetResponse(c *QQClient, pkt *network.Packet) (any, error) {
 		//log.Warn("rkey read failed! Hex: " + hex.EncodeToString(pkt.Payload) + ",err: " + err.Error())
 		return nil, err
 	}
-	var rKeyInfo = RKeyMap{}
+	var rKeyInfo = nt.RKeyMap{}
 	for _, rkey := range resp.DownloadRKey.RKeys {
-		typ := RKeyType(rkey.Type.Unwrap())
-		rKeyInfo[typ] = &RKeyInfo{
+		typ := nt.RKeyType(rkey.Type.Unwrap())
+		rKeyInfo[typ] = &nt.RKeyInfo{
 			RKey:       rkey.Rkey,
 			RKeyType:   typ,
 			CreateTime: uint64(rkey.RkeyCreateTime.Unwrap()),

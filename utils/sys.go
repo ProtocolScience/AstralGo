@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/md5"
+	"crypto/sha1"
 	"errors"
 	"io"
 )
@@ -17,7 +18,37 @@ func ComputeMd5AndLength(r io.Reader) ([]byte, int64) {
 	fh := h.Sum(nil)
 	return fh, length
 }
+func ComputeMd5Sha1AndLength(r io.Reader) ([]byte, []byte, uint32, error) {
+	var length uint32
 
+	// Create hash writers
+	md5Hash := md5.New()
+	sha1Hash := sha1.New()
+
+	// Create a multi-writer to write to both hash writers
+	multiWriter := io.MultiWriter(md5Hash, sha1Hash)
+	// Buffer to read data
+	buf := make([]byte, 4096)
+	for {
+		n, err := r.Read(buf)
+		if n > 0 {
+			length += uint32(n)
+			if _, err := multiWriter.Write(buf[:n]); err != nil {
+				return nil, nil, 0, err
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, nil, 0, err
+		}
+	}
+	// Compute final hashes
+	oMd5 := md5Hash.Sum(nil)
+	oSha1 := sha1Hash.Sum(nil)
+	return oMd5, oSha1, length, nil
+}
 func (r *multiReadSeeker) Read(p []byte) (int, error) {
 	if r.multiReader == nil {
 		readers := make([]io.Reader, len(r.readers))

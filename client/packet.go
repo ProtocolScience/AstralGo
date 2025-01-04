@@ -1,8 +1,10 @@
 package client
 
 import (
+	"encoding/hex"
 	"github.com/ProtocolScience/AstralGo/client/internal/network"
 	"github.com/ProtocolScience/AstralGo/client/internal/oicq"
+	log "github.com/sirupsen/logrus"
 )
 
 //go:noinline
@@ -27,6 +29,7 @@ func (c *QQClient) uniPacket(command string, body []byte) (uint16, []byte) {
 		CommandName: command,
 		Body:        body,
 	}
+	log.Debugf("uniPacket: %s, %s", command, hex.EncodeToString(body))
 	return seq, c.transport.PackPacket(&req)
 }
 
