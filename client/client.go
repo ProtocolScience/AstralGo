@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"github.com/ProtocolScience/AstralGo/client/nt"
+	"github.com/ProtocolScience/AstralGo/client/pb/database"
 	"github.com/ProtocolScience/AstralGo/client/pb/trpc"
 	"github.com/ProtocolScience/AstralGo/internal/proto"
 	log "github.com/sirupsen/logrus"
@@ -127,6 +128,7 @@ type QQClient struct {
 	highwayApplyUpSeq      atomic.Int32
 
 	groupListLock     sync.Mutex
+	rKeyLock          sync.Mutex
 	RKey              nt.RKeyMap
 	firstLoginSucceed bool
 }
@@ -600,26 +602,26 @@ func (c *QQClient) GetGroupList() ([]*GroupInfo, error) {
 	}
 	interner := intern.NewStringInterner()
 	r := rsp.([]*GroupInfo)
-	wg := sync.WaitGroup{}
-	batch := 50
+	//wg := sync.WaitGroup{}
+	batch := 10
 	for i := 0; i < len(r); i += batch {
 		k := i + batch
 		if k > len(r) {
 			k = len(r)
 		}
-		wg.Add(k - i)
+		//wg.Add(k - i)
 		for j := i; j < k; j++ {
-			go func(g *GroupInfo, wg *sync.WaitGroup) {
-				defer wg.Done()
+			go func(g *GroupInfo /*wg *sync.WaitGroup*/) {
+				//defer wg.Done()
 				m, err := c.getGroupMembers(g, interner)
 				if err != nil {
 					return
 				}
 				g.Members = m
 				g.Name = interner.Intern(g.Name)
-			}(r[j], &wg)
+			}(r[j] /*&wg*/)
 		}
-		wg.Wait()
+		//wg.Wait()
 	}
 	return r, nil
 }
@@ -630,37 +632,6 @@ func (c *QQClient) GetGroupMembers(group *GroupInfo) ([]*GroupMemberInfo, error)
 }
 
 func (c *QQClient) getGroupMembers(group *GroupInfo, interner *intern.StringInterner) ([]*GroupMemberInfo, error) {
-
-	/*
-		var list []*GroupMemberInfo
-		var nextUin int64
-			for {
-				data, err := c.sendAndWait(c.buildGroupMemberListRequestPacket(group.Uin, group.Code, nextUin))
-				if err != nil {
-					return nil, err
-				}
-				if data == nil {
-					return nil, errors.New("group members list is unavailable: rsp is nil")
-				}
-				rsp := data.(*groupMemberListResponse)
-				nextUin = rsp.NextUin
-				for _, m := range rsp.list {
-					m.Group = group
-					if m.Uin == group.OwnerUin {
-						m.Permission = Owner
-					}
-					m.CardName = interner.Intern(m.CardName)
-					m.Nickname = interner.Intern(m.Nickname)
-					m.SpecialTitle = interner.Intern(m.SpecialTitle)
-				}
-				list = append(list, rsp.list...)
-				if nextUin == 0 {
-					sort.Slice(list, func(i, j int) bool {
-						return list[i].Uin < list[j].Uin
-					})
-					return list, nil
-				}
-			}*/
 	var list []*GroupMemberInfo
 	var requestToken string
 	for {
@@ -774,6 +745,7 @@ func (c *QQClient) SolveFriendRequest(req *NewFriendRequest, accept bool) {
 	_ = c.sendPacket(pkt)
 }
 func (c *QQClient) GetRKey() (*nt.RKeyMap, error) {
+	c.rKeyLock.Lock()
 	if c.RKey != nil {
 		for _, v := range c.RKey {
 			if v.ExpireTime < uint64(time.Now().Unix()) {
@@ -805,6 +777,7 @@ func (c *QQClient) GetRKey() (*nt.RKeyMap, error) {
 			},
 		}
 	}
+	defer c.rKeyLock.Unlock()
 	return &c.RKey, nil
 }
 func (c *QQClient) getSKey() string {
@@ -983,4 +956,47 @@ func (c *QQClient) doHeartbeat() {
 		}
 	}
 	c.heartbeatEnabled = false
+}
+func (c *QQClient) GetRKeyString(rkType nt.RKeyType) string {
+	rKey, _ := c.GetRKey()
+	key := (*rKey)[rkType]
+	if key == nil {
+		return ""
+	}
+	return key.RKey
+}
+func (c *QQClient) GetDatabaseImageUrl(d *database.DatabaseImage) string {
+	return d.GetDatabaseImageUrl(c.GetRKeyString(nt.RKeyType(d.BusinessType)))
+}
+func (c *QQClient) GetElementImageUrl(e *message.NewTechImageElement) string {
+	if e.LegacyGroup != nil {
+		if e.LegacyGroup.Url == "" {
+			downLoadUrl, err := c.GetGroupImageDownloadUrl(e.LegacyGroup.FileId, c.GroupList[0].Code, e.LegacyGroup.Md5)
+			if err != nil {
+				log.Warnf("Failed to download image: %v", e)
+			}
+			return downLoadUrl
+		}
+		return e.LegacyGroup.Url
+	} else if e.LegacyGuild != nil {
+		return e.LegacyGuild.Url
+	} else if e.LegacyFriend != nil {
+		if e.LegacyFriend.Url == "" {
+			i, err := c.sendAndWait(c.buildOffPicUpPacket(c.Uin, e.LegacyFriend.Md5, e.LegacyFriend.Size))
+			if err != nil {
+				log.Warn("couldn't get friend image url download address for decoding response")
+				return ""
+			}
+			rsp := i.(*imageUploadResponse)
+			if rsp.ResultCode != 0 {
+				log.Warnf("couldn't get friend image url download address,code = %d", rsp.ResultCode)
+				return ""
+			}
+			if rsp.IsExists {
+				return "https://c2cpicdw.qpic.cn/offpic_new/0" + rsp.ResourceId + "/0?term=2"
+			}
+		}
+		return e.LegacyFriend.Url
+	}
+	return e.DownloadUrl() + c.GetRKeyString(nt.RKeyType(e.BusinessType))
 }

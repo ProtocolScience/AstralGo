@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"io"
 	"math/rand"
 	"strconv"
 
@@ -79,38 +78,26 @@ func (s *GuildService) SendGuildChannelMessage(guildId, channelId uint64, m *mes
 	}, nil
 }
 
-func (s *GuildService) QueryImage(guildId, channelId uint64, hash []byte, size uint64) (*message.GuildImageElement, error) {
+func (s *GuildService) QueryImage(guildId, channelId uint64, hash []byte, size uint64) (*message.NewTechImageElement, error) {
 	rsp, err := s.c.sendAndWait(s.c.buildGuildImageStorePacket(guildId, channelId, hash, size))
 	if err != nil {
 		return nil, errors.Wrap(err, "send packet error")
 	}
 	body := rsp.(*imageUploadResponse)
 	if body.IsExists {
-		return &message.GuildImageElement{
-			FileId:        body.FileId,
-			FilePath:      fmt.Sprintf("%x.jpg", hash),
-			Size:          int32(size),
-			DownloadIndex: body.DownloadIndex,
-			Width:         body.Width,
-			Height:        body.Height,
-			Md5:           hash,
+		return &message.NewTechImageElement{
+			LegacyGuild: &message.GuildImageElement{
+				FileId:        body.FileId,
+				FilePath:      fmt.Sprintf("%x.jpg", hash),
+				Size:          int32(size),
+				DownloadIndex: body.DownloadIndex,
+				Width:         body.Width,
+				Height:        body.Height,
+				Md5:           hash,
+			},
 		}, nil
 	}
 	return nil, errors.New("image is not exists")
-}
-
-// Deprecated: use QQClient.UploadImage instead
-func (s *GuildService) UploadGuildImage(guildId, channelId uint64, img io.ReadSeeker) (*message.GuildImageElement, error) {
-	source := message.Source{
-		SourceType:  message.SourceGuildChannel,
-		PrimaryID:   int64(guildId),
-		SecondaryID: int64(channelId),
-	}
-	image, err := s.c.uploadGroupOrGuildImage(source, img)
-	if err != nil {
-		return nil, err
-	}
-	return image.(*message.GuildImageElement), nil
 }
 
 func (s *GuildService) PullGuildChannelMessage(guildId, channelId, beginSeq, endSeq uint64) (r []*message.GuildChannelMessage, e error) {

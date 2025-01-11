@@ -4,23 +4,23 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"github.com/ProtocolScience/AstralGo/client/nt"
-	"io"
-	"strings"
-	"time"
-
-	"github.com/fumiama/imgsz"
-	"github.com/pkg/errors"
-
 	"github.com/ProtocolScience/AstralGo/binary"
 	"github.com/ProtocolScience/AstralGo/client/internal/highway"
 	"github.com/ProtocolScience/AstralGo/client/internal/network"
+	"github.com/ProtocolScience/AstralGo/client/nt"
 	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x388"
+	"github.com/ProtocolScience/AstralGo/client/pb/database"
 	highway2 "github.com/ProtocolScience/AstralGo/client/pb/highway"
 	"github.com/ProtocolScience/AstralGo/client/pb/oidb"
 	"github.com/ProtocolScience/AstralGo/internal/proto"
 	"github.com/ProtocolScience/AstralGo/message"
 	"github.com/ProtocolScience/AstralGo/utils"
+	"github.com/fumiama/imgsz"
+	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"io"
+	"strings"
+	"time"
 )
 
 func init() {
@@ -45,16 +45,112 @@ type imageUploadResponse struct {
 	IsExists      bool
 }
 
+func ImageExt2Type(ext string) uint32 {
+	//TODO 1001,2001=png 1000=jpg 2000,3,4=gif 1005=bmp 1002=webp 2001=png
+	ext = strings.ToLower(ext)
+	mapping := map[string]uint32{
+		"png":  1001,
+		"jpg":  1000,
+		"jpeg": 1000,
+		"gif":  2000,
+		"bmp":  1005,
+		"webp": 1002,
+	}
+
+	if code, exists := mapping[ext]; exists {
+		return code
+	}
+	log.Warnf("couldn't parse file ext : %s", ext)
+	// Return a default value or an error code if the extension is not found
+	return 0
+}
 func (c *QQClient) UploadImage(target message.Source, img io.ReadSeeker) (message.IMessageElement, error) {
 	switch target.SourceType {
 	case message.SourceGuildChannel, message.SourceGuildDirect:
-		return c.uploadGroupOrGuildImage(target, img)
+		return c.uploadGuildImage(target, img)
 	case message.SourcePrivate, message.SourceGroup:
 		return c.uploadNewTechImage(target, img)
 	default:
 		return nil, errors.New("unsupported target type")
 	}
 }
+
+func (c *QQClient) UploadLegacyImage(target message.Source, img io.ReadSeeker) (message.IMessageElement, error) {
+	_, _ = img.Seek(0, io.SeekStart) // safe
+	fh, length := utils.ComputeMd5AndLength(img)
+	_, _ = img.Seek(0, io.SeekStart)
+
+	key := string(fh)
+	imgWaiter.Wait(key)
+	defer imgWaiter.Done(key)
+
+	var r any
+	var err error
+	var cmd int32
+	var input highway.Transaction
+	switch target.SourceType {
+	case message.SourceGroup:
+		r, err = c.sendAndWait(c.buildGroupImageStorePacket(target.PrimaryID, fh, int32(length)))
+		cmd = 2
+	case message.SourcePrivate:
+		r, err = c.sendAndWait(c.buildOffPicUpPacket(target.PrimaryID, fh, int32(length)))
+		cmd = 1
+	default:
+		return nil, errors.Errorf("unsupported target type %v", target.SourceType)
+	}
+	rsp := r.(*imageUploadResponse)
+	if rsp.ResultCode != 0 {
+		return nil, errors.New(rsp.Message)
+	}
+	if rsp.IsExists {
+		goto ok
+	}
+	if c.highwaySession.AddrLength() == 0 {
+		for i, addr := range rsp.UploadIp {
+			c.highwaySession.AppendAddr(addr, rsp.UploadPort[i])
+		}
+	}
+	input = highway.Transaction{
+		CommandID: cmd,
+		Body:      img,
+		Size:      length,
+		Sum:       fh,
+		Ticket:    rsp.UploadKey,
+	}
+	_, err = c.highwaySession.Upload(input)
+	if err != nil {
+		return nil, errors.Wrap(err, "upload failed")
+	}
+ok:
+	_, _ = img.Seek(0, io.SeekStart)
+	i, t, _ := imgsz.DecodeSize(img)
+	imageType := ImageExt2Type(t)
+	width := int32(i.Width)
+	height := int32(i.Height)
+	url := "https://c2cpicdw.qpic.cn/offpic_new/0" + rsp.ResourceId + "/0?term=2"
+	if target.SourceType == message.SourceGroup {
+		return &message.GroupImageElement{
+			ImageId:   rsp.ResourceId,
+			Md5:       fh,
+			FileId:    rsp.FileId,
+			Size:      int32(length),
+			Width:     width,
+			Height:    height,
+			ImageType: int32(imageType),
+			Url:       url,
+		}, nil
+	} else {
+		return &message.FriendImageElement{
+			ImageId: rsp.ResourceId,
+			Md5:     fh,
+			Size:    int32(length),
+			Width:   width,
+			Height:  height,
+			Url:     url,
+		}, nil
+	}
+}
+
 func (c *QQClient) uploadNewTechImage(target message.Source, img io.ReadSeeker) (message.IMessageElement, error) {
 	_, _ = img.Seek(0, io.SeekStart)
 	md5, sha1, length, err := utils.ComputeMd5Sha1AndLength(img)
@@ -62,16 +158,18 @@ func (c *QQClient) uploadNewTechImage(target message.Source, img io.ReadSeeker) 
 		return nil, err
 	}
 	_, _ = img.Seek(0, io.SeekStart)
-	i, _, _ := imgsz.DecodeSize(img)
+	i, ext, err := imgsz.DecodeSize(img)
+	if err != nil {
+		return nil, err
+	}
 	_, _ = img.Seek(0, io.SeekStart)
 	width := uint32(i.Width)
 	height := uint32(i.Height)
-
 	image := nt.ImageParam{
 		Width:       width,
 		Height:      height,
 		SubFileType: 0,
-		Type:        1001,
+		Type:        ImageExt2Type(ext),
 		MD5:         md5,
 		SHA1:        sha1,
 		Size:        int64(length),
@@ -133,20 +231,21 @@ func (c *QQClient) uploadNewTechImage(target message.Source, img io.ReadSeeker) 
 	if err != nil {
 		return nil, err
 	}
-	return &message.NTImageElement{
+	return &message.NewTechImageElement{
 		FileUUID:     access.MsgInfoBody[0].Index.FileUuid,
 		Md5:          md5,
 		Sha1:         sha1,
 		Size:         length,
 		Width:        width,
 		Height:       height,
-		Url:          access.MsgInfoBody[0].Picture.UrlPath,
+		Path:         access.MsgInfoBody[0].Picture.UrlPath,
 		Domain:       access.MsgInfoBody[0].Picture.Domain,
 		BusinessType: business,
+		ImageType:    access.MsgInfoBody[0].Index.Info.Type.PicFormat,
 	}, nil
 }
 
-func (c *QQClient) uploadGroupOrGuildImage(target message.Source, img io.ReadSeeker) (message.IMessageElement, error) {
+func (c *QQClient) uploadGuildImage(target message.Source, img io.ReadSeeker) (*message.NewTechImageElement, error) {
 	_, _ = img.Seek(0, io.SeekStart) // safe
 	fh, length := utils.ComputeMd5AndLength(img)
 	_, _ = img.Seek(0, io.SeekStart)
@@ -155,22 +254,16 @@ func (c *QQClient) uploadGroupOrGuildImage(target message.Source, img io.ReadSee
 	imgWaiter.Wait(key)
 	defer imgWaiter.Done(key)
 
-	cmd := int32(2)
-	ext := EmptyBytes
-	if target.SourceType != message.SourceGroup { // guild
-		cmd = 83
-		ext = proto.DynamicMessage{
-			11: target.PrimaryID,
-			12: target.SecondaryID,
-		}.Encode()
-	}
+	cmd := int32(83)
+	ext := proto.DynamicMessage{
+		11: target.PrimaryID,
+		12: target.SecondaryID,
+	}.Encode()
 
 	var r any
 	var err error
 	var input highway.Transaction
 	switch target.SourceType {
-	case message.SourceGroup:
-		r, err = c.sendAndWait(c.buildGroupImageStorePacket(target.PrimaryID, fh, int32(length)))
 	case message.SourceGuildChannel, message.SourceGuildDirect:
 		r, err = c.sendAndWait(c.buildGuildImageStorePacket(uint64(target.PrimaryID), uint64(target.SecondaryID), fh, uint64(length)))
 	default:
@@ -207,168 +300,24 @@ func (c *QQClient) uploadGroupOrGuildImage(target message.Source, img io.ReadSee
 ok:
 	_, _ = img.Seek(0, io.SeekStart)
 	i, t, _ := imgsz.DecodeSize(img)
-	var imageType int32 = 1000
-	if t == "gif" {
-		imageType = 2000
-	}
 	width := int32(i.Width)
 	height := int32(i.Height)
-	if err != nil && target.SourceType != message.SourceGroup {
+	if target.SourceType != message.SourceGroup {
 		c.warning("warning: decode image error: %v. this image will be displayed by wrong size in pc guild client", err)
 		width = 200
 		height = 200
 	}
-	if target.SourceType == message.SourceGroup {
-		return message.NewGroupImage(
-			binary.CalculateImageResourceId(fh),
-			fh, rsp.FileId, int32(length),
-			int32(i.Width), int32(i.Height), imageType,
-		), nil
-	}
-	return &message.GuildImageElement{
-		FileId:        rsp.FileId,
-		FilePath:      fmt.Sprintf("%x.jpg", fh),
-		Size:          int32(length),
-		DownloadIndex: rsp.DownloadIndex,
-		Width:         width,
-		Height:        height,
-		ImageType:     imageType,
-		Md5:           fh,
-	}, nil
-}
-
-func (c *QQClient) GetGroupImageDownloadUrl(fileId, groupCode int64, fileMd5 []byte) (string, error) {
-	i, err := c.sendAndWait(c.buildGroupImageDownloadPacket(fileId, groupCode, fileMd5))
-	if err != nil {
-		return "", err
-	}
-	return i.(string), nil
-}
-
-func (c *QQClient) uploadPrivateImage(target int64, img io.ReadSeeker, count int) (message.IMessageElement, error) {
-	_, _ = img.Seek(0, io.SeekStart)
-	count++
-	fh, length := utils.ComputeMd5AndLength(img)
-	_, _ = img.Seek(0, io.SeekStart)
-	i, _, _ := imgsz.DecodeSize(img)
-	_, _ = img.Seek(0, io.SeekStart)
-	width := int32(i.Width)
-	height := int32(i.Height)
-	e, err := c.QueryFriendImage(target, fh, int32(length))
-	if errors.Is(err, ErrNotExists) {
-		groupSource := message.Source{
-			SourceType: message.SourceGroup,
-			PrimaryID:  target,
-		}
-		// use group highway upload and query again for image id.
-		if _, err = c.uploadGroupOrGuildImage(groupSource, img); err != nil {
-			return nil, err
-		}
-		if count >= 5 {
-			return e, nil
-		}
-		return c.uploadPrivateImage(target, img, count)
-	}
-	if err != nil {
-		return nil, err
-	}
-	e.Height = height
-	e.Width = width
-	return e, nil
-}
-
-func (c *QQClient) ImageOcr(img any) (*OcrResponse, error) {
-	url := ""
-	switch e := img.(type) {
-	case *message.GroupImageElement:
-		url = e.Url
-		if b, err := utils.HTTPGetReadCloser(e.Url, ""); err == nil {
-			if url, err = c.uploadOcrImage(b, e.Size, e.Md5); err != nil {
-				url = e.Url
-			}
-			_ = b.Close()
-		}
-		rsp, err := c.sendAndWait(c.buildImageOcrRequestPacket(url, fmt.Sprintf("%X", e.Md5), e.Size, e.Width, e.Height))
-		if err != nil {
-			return nil, err
-		}
-		return rsp.(*OcrResponse), nil
-	}
-	return nil, errors.New("image error")
-}
-
-func (c *QQClient) QueryImage(groupCode int64, friendUin int64, hash []byte, size int32) (*message.NTImageElement, error) {
-	image := nt.ImageParam{
-		Type:     1001,
-		MD5:      hash,
-		Size:     int64(size),
-		Filename: strings.ToUpper(hex.EncodeToString(hash)) + ".png",
-	}
-	media := nt.MediaParam{
-		Type:   nt.IMAGE,
-		Params: []nt.DataParam{image},
-	}
-	var err error
-	var resp interface{}
-	var business uint32
-	if groupCode == 0 {
-		business = nt.BusinessFriendImage
-		resp, err = c.sendAndWait(c.buildNewTechCommonFriendImageUpPacket(&media, friendUin))
-	} else {
-		business = nt.BusinessGroupImage
-		resp, err = c.sendAndWait(c.buildNewTechCommonGroupImageUpPacket(&media, groupCode))
-	}
-	if err != nil {
-		return nil, err
-	}
-	switch resp.(type) {
-	case nt.FileExists:
-		r := resp.(nt.FileExists)
-		access := &r.UploadAccess
-		if access == nil {
-			return nil, errors.New("access failed")
-		}
-		sha1, _ := hex.DecodeString(access.MsgInfoBody[0].Index.Info.FileSha1)
-		return &message.NTImageElement{
-			FileUUID:     access.MsgInfoBody[0].Index.FileUuid,
-			Md5:          hash,
-			Sha1:         sha1,
-			Size:         uint32(size),
-			Width:        access.MsgInfoBody[0].Index.Info.Width,
-			Height:       access.MsgInfoBody[0].Index.Info.Height,
-			Url:          access.MsgInfoBody[0].Picture.UrlPath,
-			Domain:       access.MsgInfoBody[0].Picture.Domain,
-			BusinessType: business,
-		}, nil
-	default:
-		return nil, errors.New("image does not exist")
-	}
-}
-
-func (c *QQClient) QueryFriendImage(target int64, hash []byte, size int32) (*message.FriendImageElement, error) {
-	i, err := c.sendAndWait(c.buildOffPicUpPacket(target, hash, size))
-	if err != nil {
-		return nil, err
-	}
-	rsp := i.(*imageUploadResponse)
-	if rsp.ResultCode != 0 {
-		return nil, errors.New(rsp.Message)
-	}
-	if !rsp.IsExists {
-		return &message.FriendImageElement{
-			ImageId: rsp.ResourceId,
-			Md5:     hash,
-			Size:    size,
-			Url:     "https://c2cpicdw.qpic.cn/offpic_new/0/" + rsp.ResourceId + "/0?term=2",
-		}, errors.WithStack(ErrNotExists)
-	}
-	return &message.FriendImageElement{
-		ImageId: rsp.ResourceId,
-		Md5:     hash,
-		Url:     "https://c2cpicdw.qpic.cn/offpic_new/0/" + rsp.ResourceId + "/0?term=2",
-		Size:    size,
-		Height:  rsp.Height,
-		Width:   rsp.Width,
+	return &message.NewTechImageElement{
+		LegacyGuild: &message.GuildImageElement{
+			FileId:        rsp.FileId,
+			FilePath:      fmt.Sprintf("%x.jpg", fh),
+			Size:          int32(length),
+			DownloadIndex: rsp.DownloadIndex,
+			Width:         width,
+			Height:        height,
+			ImageType:     int32(ImageExt2Type(t)),
+			Md5:           fh,
+		},
 	}, nil
 }
 
@@ -400,7 +349,6 @@ func (c *QQClient) buildGroupImageStorePacket(groupCode int64, md5 []byte, size 
 	payload, _ := proto.Marshal(req)
 	return c.uniPacket("ImgStore.GroupPicUp", payload)
 }
-
 func (c *QQClient) buildGroupImageDownloadPacket(fileId, groupCode int64, fileMd5 []byte) (uint16, []byte) {
 	req := &cmd0x388.D388ReqBody{
 		NetType: proto.Uint32(3),
@@ -423,6 +371,115 @@ func (c *QQClient) buildGroupImageDownloadPacket(fileId, groupCode int64, fileMd
 	}
 	payload, _ := proto.Marshal(req)
 	return c.uniPacket("ImgStore.GroupPicDown", payload)
+}
+
+func (c *QQClient) GetGroupImageDownloadUrl(fileId, groupCode int64, fileMd5 []byte) (string, error) {
+	i, err := c.sendAndWait(c.buildGroupImageDownloadPacket(fileId, groupCode, fileMd5))
+	if err != nil {
+		return "", err
+	}
+	return i.(string), nil
+}
+
+func (c *QQClient) QueryFriendImage(target int64, hash []byte, size int32) (*message.NewTechImageElement, error) {
+	i, err := c.sendAndWait(c.buildOffPicUpPacket(target, hash, size))
+	if err != nil {
+		return nil, err
+	}
+	rsp := i.(*imageUploadResponse)
+	if rsp.ResultCode != 0 {
+		return nil, errors.New(rsp.Message)
+	}
+	if !rsp.IsExists {
+		return &message.NewTechImageElement{
+			Md5:    hash,
+			Size:   uint32(size),
+			Path:   "/offpic_new/0" + rsp.ResourceId + "/0?term=2",
+			Domain: "c2cpicdw.qpic.cn",
+		}, errors.WithStack(ErrNotExists)
+	}
+	return &message.NewTechImageElement{
+		Md5:    hash,
+		Path:   "/offpic_new/0" + rsp.ResourceId + "/0?term=2",
+		Domain: "c2cpicdw.qpic.cn",
+		Size:   uint32(size),
+		Height: uint32(rsp.Height),
+		Width:  uint32(rsp.Width),
+	}, nil
+}
+
+func (c *QQClient) ImageOcr(img any) (*OcrResponse, error) {
+	url := ""
+	switch e := img.(type) {
+	case *message.NewTechImageElement:
+		url = c.GetElementImageUrl(e)
+		if b, err := utils.HTTPGetReadCloser(url, ""); err == nil {
+			if url, err = c.uploadOcrImage(b, int32(e.Size), e.Md5); err != nil {
+				url = e.Path
+			}
+			_ = b.Close()
+		}
+		rsp, err := c.sendAndWait(c.buildImageOcrRequestPacket(url, fmt.Sprintf("%X", e.Md5), int32(e.Size), int32(e.Width), int32(e.Height)))
+		if err != nil {
+			return nil, err
+		}
+		return rsp.(*OcrResponse), nil
+	}
+	return nil, errors.New("image error")
+}
+
+func (c *QQClient) QueryImage(groupCode int64, friendUin int64, data *database.DatabaseImage) (*message.NewTechImageElement, error) {
+	if len(data.Sha1) == 0 { //NT协议要求必须要有SHA1，为了从URL获得SHA1，有且只能下载
+		return nil, errors.New("image file cannot query with sha1 because it is not NewTechImageElement")
+	}
+	image := nt.ImageParam{
+		Type:        data.ImageType,
+		MD5:         data.Md5,
+		SHA1:        data.Sha1,
+		Size:        int64(data.Size),
+		Filename:    strings.ToUpper(hex.EncodeToString(data.Md5)) + ".png",
+		Width:       data.Width,
+		Height:      data.Height,
+		SubFileType: 0,
+	}
+	media := nt.MediaParam{
+		Type:   nt.IMAGE,
+		Params: []nt.DataParam{image},
+	}
+	var err error
+	var resp interface{}
+	var business uint32
+	if groupCode == 0 {
+		business = nt.BusinessFriendImage
+		resp, err = c.sendAndWait(c.buildNewTechCommonFriendImageUpPacket(&media, friendUin))
+	} else {
+		business = nt.BusinessGroupImage
+		resp, err = c.sendAndWait(c.buildNewTechCommonGroupImageUpPacket(&media, groupCode))
+	}
+	if err != nil {
+		return nil, err
+	}
+	switch resp.(type) {
+	case nt.FileExists:
+		r := resp.(nt.FileExists)
+		access := &r.UploadAccess
+		if access == nil {
+			return nil, errors.New("access failed")
+		}
+		return &message.NewTechImageElement{
+			FileUUID:     access.MsgInfoBody[0].Index.FileUuid,
+			Md5:          data.Md5,
+			Sha1:         data.Sha1,
+			Size:         data.Size,
+			Width:        access.MsgInfoBody[0].Index.Info.Width,
+			Height:       access.MsgInfoBody[0].Index.Info.Height,
+			Path:         access.MsgInfoBody[0].Picture.UrlPath,
+			Domain:       access.MsgInfoBody[0].Picture.Domain,
+			BusinessType: business,
+		}, nil
+	default:
+		return nil, errors.New("image does not exist")
+	}
 }
 
 func (c *QQClient) uploadOcrImage(img io.Reader, size int32, sum []byte) (string, error) {
