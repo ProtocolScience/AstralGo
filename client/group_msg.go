@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0x9082"
 	"math"
 	"math/rand"
 	"strconv"
@@ -63,6 +64,22 @@ func (c *QQClient) GetGroupMessages(groupCode, beginSeq, endSeq int64) ([]*messa
 		return nil, err
 	}
 	return i.([]*message.GroupMessage), nil
+}
+
+func (c *QQClient) SetGroupReaction(groupCode int64, seq int32, iconId string, iconType int32, enable bool) (any, error) {
+	if enable {
+		i, err := c.sendAndWait(c.buildGroupReactionRequestPacket(groupCode, seq, iconId, iconType))
+		if err != nil {
+			return nil, err
+		}
+		return i, nil
+	} else {
+		i, err := c.sendAndWait(c.buildGroupReactionCancelRequestPacket(groupCode, seq, iconId, iconType))
+		if err != nil {
+			return nil, err
+		}
+		return i, nil
+	}
 }
 
 func (c *QQClient) GetAtAllRemain(groupCode int64) (*AtAllRemainInfo, error) {
@@ -163,11 +180,13 @@ func (c *QQClient) multiMsgApplyUp(groupCode int64, data []byte, hash []byte, bu
 
 // MessageSvc.PbSendMsg
 func (c *QQClient) buildGroupSendingPacket(groupCode int64, r, pkgNum, pkgIndex, pkgDiv int32, forward bool, m []message.IMessageElement) (uint16, []byte) {
-	var ptt *message.GroupVoiceElement
+	var ptt *msg.Ptt
 	if len(m) > 0 {
-		if p, ok := m[0].(*message.GroupVoiceElement); ok {
-			ptt = p
-			m = []message.IMessageElement{}
+		if p, ok := m[0].(*message.NewTechVoiceElement); ok {
+			if p.LegacyGroup != nil {
+				ptt = p.LegacyGroup.Ptt
+				m = []message.IMessageElement{}
+			}
 		}
 	}
 	req := &msg.SendMessageRequest{
@@ -177,10 +196,7 @@ func (c *QQClient) buildGroupSendingPacket(groupCode int64, r, pkgNum, pkgIndex,
 			RichText: &msg.RichText{
 				Elems: message.ToProtoElems(m, true),
 				Ptt: func() *msg.Ptt {
-					if ptt != nil {
-						return ptt.Ptt
-					}
-					return nil
+					return ptt
 				}(),
 			},
 		},
@@ -208,6 +224,25 @@ func (c *QQClient) buildGetGroupMsgRequest(groupCode, beginSeq, endSeq int64) (u
 	}
 	payload, _ := proto.Marshal(req)
 	return c.uniPacket("MessageSvc.PbGetGroupMsg", payload)
+}
+
+func (c *QQClient) buildGroupReactionRequestPacket(groupCode int64, seq int32, iconId string, iconType int32) (uint16, []byte) {
+	payload := c.packOIDBPackageProto(0x9082, 1, &oidbSvcTrpcTcp0x9082.Reaction{
+		GroupId: groupCode,
+		Seq:     seq,
+		IconId:  iconId,
+		Type:    iconType,
+	})
+	return c.uniPacket("OidbSvcTrpcTcp.0x9082_1", payload)
+}
+func (c *QQClient) buildGroupReactionCancelRequestPacket(groupCode int64, seq int32, iconId string, iconType int32) (uint16, []byte) {
+	payload := c.packOIDBPackageProto(0x9082, 2, &oidbSvcTrpcTcp0x9082.Reaction{
+		GroupId: groupCode,
+		Seq:     seq,
+		IconId:  iconId,
+		Type:    iconType,
+	})
+	return c.uniPacket("OidbSvcTrpcTcp.0x9082_2", payload)
 }
 
 func (c *QQClient) buildAtAllRemainRequestPacket(groupCode int64) (uint16, []byte) {
@@ -497,11 +532,15 @@ func (c *QQClient) parseGroupMessage(m *msg.Message) *message.GroupMessage {
 		}
 
 		g.Elements = []message.IMessageElement{
-			&message.VoiceElement{
-				Name: m.Body.RichText.Ptt.FileName.Unwrap(),
-				Md5:  m.Body.RichText.Ptt.FileMd5,
-				Size: m.Body.RichText.Ptt.FileSize.Unwrap(),
-				Url:  url,
+			&message.NewTechVoiceElement{
+				SrcUin:   uint64(c.Uin),
+				FileUUID: m.Body.RichText.Ptt.FileName.Unwrap(),
+				Md5:      m.Body.RichText.Ptt.FileMd5,
+				Size:     uint32(m.Body.RichText.Ptt.FileSize.Unwrap()),
+				Url:      url,
+				LegacyGroup: &message.GroupVoiceElement{
+					Ptt: m.Body.RichText.Ptt,
+				},
 			},
 		}
 	}

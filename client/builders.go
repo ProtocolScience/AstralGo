@@ -7,11 +7,13 @@ import (
 	"github.com/ProtocolScience/AstralGo/client/internal/auth"
 	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x6ff"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/media"
+	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0x8FC_2"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFD4_1"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE1_2"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE5_2"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE7_3"
 	"github.com/ProtocolScience/AstralGo/client/pb/trpc"
+	"github.com/ProtocolScience/AstralGo/utils"
 	"math/rand"
 	"time"
 
@@ -950,7 +952,7 @@ func (c *QQClient) buildFriendDeletePacket(target int64) (uint16, []byte) {
 
 // OidbSvcTrpcTcp.0xfe5_2
 // TODO 1000群以上可能获取不了了
-func (c *QQClient) buildNewGroupListRequestPacket() (uint16, []byte) {
+func (c *QQClient) buildNewGroupListRequestPacket() (uint16, []byte, network.RequestParams) {
 	// Create an instance of Request
 	request := &oidbSvcTrpcTcp0xFE5_2.Request{
 		Config: &oidbSvcTrpcTcp0xFE5_2.Config{
@@ -971,7 +973,8 @@ func (c *QQClient) buildNewGroupListRequestPacket() (uint16, []byte) {
 	}
 	b, _ := proto.Marshal(request)
 	payload := c.packOIDBPackage(0xfe5, 2, b)
-	return c.uniPacket("OidbSvcTrpcTcp.0xfe5_2", payload)
+	seq, data := c.uniPacket("OidbSvcTrpcTcp.0xfe5_2", payload)
+	return seq, data, network.RequestParams{"timeout": 120}
 }
 
 // friendlist.GetTroopListReqV2
@@ -1273,22 +1276,20 @@ func (c *QQClient) buildEditGroupTagPacket(groupCode, memberUin int64, newTag st
 	return c.uniPacket("friendlist.ModifyGroupCardReq", pkt.ToBytes())
 }
 
-// OidbSvc.0x8fc_2
+// OidbSvcTrpcTcp.0x8fc_2
 func (c *QQClient) buildEditSpecialTitlePacket(groupCode, memberUin int64, newTitle string) (uint16, []byte) {
-	body := &oidb.D8FCReqBody{
-		GroupCode: proto.Some(groupCode),
-		MemLevelInfo: []*oidb.D8FCMemberInfo{
-			{
-				Uin:                    proto.Some(memberUin),
-				UinName:                []byte(newTitle),
-				SpecialTitle:           []byte(newTitle),
-				SpecialTitleExpireTime: proto.Int32(-1),
-			},
+	body := &oidbSvcTrpcTcp0x8FC_2.Request{
+		GroupUin: uint32(groupCode),
+		Body: &oidbSvcTrpcTcp0x8FC_2.Body{
+			TargetUid:    utils.UIDGlobalCaches.GetByUIN(memberUin).UID,
+			UinName:      newTitle,
+			SpecialTitle: newTitle,
+			ExpiredTime:  -1,
 		},
 	}
 	b, _ := proto.Marshal(body)
 	payload := c.packOIDBPackage(2300, 2, b)
-	return c.uniPacket("OidbSvc.0x8fc_2", payload)
+	return c.uniPacket("OidbSvcTrpcTcp.0x8fc_2", payload)
 }
 
 // OidbSvc.0x89a_0

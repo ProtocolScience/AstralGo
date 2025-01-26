@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/ProtocolScience/AstralGo/binary"
 	"github.com/ProtocolScience/AstralGo/client/internal/network"
-	"github.com/ProtocolScience/AstralGo/client/nt"
 	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x6ff"
 	oldMsg "github.com/ProtocolScience/AstralGo/client/pb/msg"
-	"github.com/ProtocolScience/AstralGo/client/pb/nt/media"
+	"github.com/ProtocolScience/AstralGo/client/pb/notify"
+	"github.com/ProtocolScience/AstralGo/client/pb/nt/event"
 	ntMsg "github.com/ProtocolScience/AstralGo/client/pb/nt/message"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFD4_1"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE1_2"
@@ -31,6 +31,10 @@ var NTDecoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"trpc.msg.olpush.OlPushService.MsgPush":                  decodeOlPushServicePacket,
 	"trpc.msg.register_proxy.RegisterProxy.PushParams":       decodePushParamsPacket,
 	"trpc.msg.register_proxy.RegisterProxy.InfoSyncPush":     ignoreDecoder,
+	"OidbSvcTrpcTcp.0x9082_1":                                ignoreDecoder, //群反应
+	"OidbSvcTrpcTcp.0x9082_2":                                ignoreDecoder, //群反应
+	"OidbSvcTrpcTcp.0x8fc_2":                                 ignoreDecoder, //群头衔
+	"OnlinePush.ReqPush":                                     ignoreDecoder, //decodeOnlinePushReqPacket与NT协议推送decodeOlPushServicePacket重复了
 	"OidbSvcTrpcTcp.0xfd4_1":                                 decodeNewTechFriendGroupListResponse,
 	"OidbSvcTrpcTcp.0xfe7_3":                                 decodeNewTechGetTroopMemberListResponse,
 	"OidbSvcTrpcTcp.0xfe5_2":                                 decodeNewTechGetTroopListSimplyResponse,
@@ -40,7 +44,9 @@ var NTDecoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"OidbSvcTrpcTcp.0x11c5_100":                              decodeNewTechMediaResponse,
 	"OidbSvcTrpcTcp.0x11c4_100":                              decodeNewTechMediaResponse,
 	"OidbSvcTrpcTcp.0x126d_100":                              decodeNewTechMediaResponse,
+	"OidbSvcTrpcTcp.0x126d_200":                              decodeNewTechMediaResponse,
 	"OidbSvcTrpcTcp.0x126e_100":                              decodeNewTechMediaResponse,
+	"OidbSvcTrpcTcp.0x126e_200":                              decodeNewTechMediaResponse,
 	"OidbSvcTrpcTcp.0x9067_202":                              decodeNewTechMediaResponse,
 }
 
@@ -257,25 +263,6 @@ func decodeKickNTPacket(c *QQClient, pkt *network.Packet) (any, error) {
 	go c.DisconnectedEvent.dispatch(c, &DisconnectedEvent{Message: resp.Tips.Unwrap(), Reconnection: false})
 	return nil, nil
 }
-func decodeRKeyGetResponse(c *QQClient, pkt *network.Packet) (any, error) {
-	resp := &media.NTV2RichMediaResp{}
-	err := unpackOIDBPackage(pkt.Payload, resp)
-	if err != nil {
-		//log.Warn("rkey read failed! Hex: " + hex.EncodeToString(pkt.Payload) + ",err: " + err.Error())
-		return nil, err
-	}
-	var rKeyInfo = nt.RKeyMap{}
-	for _, rkey := range resp.DownloadRKey.RKeys {
-		typ := nt.RKeyType(rkey.Type.Unwrap())
-		rKeyInfo[typ] = &nt.RKeyInfo{
-			RKey:       rkey.Rkey,
-			RKeyType:   typ,
-			CreateTime: uint64(rkey.RkeyCreateTime.Unwrap()),
-			ExpireTime: uint64(rkey.RkeyCreateTime.Unwrap()) + rkey.RkeyTtlSec,
-		}
-	}
-	return &rKeyInfo, nil
-}
 func decodeOlPushServicePacket(c *QQClient, pkt *network.Packet) (any, error) {
 	msg := ntMsg.PushMsg{}
 	err := proto.Unmarshal(pkt.Payload, &msg)
@@ -290,8 +277,12 @@ func decodeOlPushServicePacket(c *QQClient, pkt *network.Packet) (any, error) {
 			c.error("protobuf data: %x", pkt.Payload)
 		}
 	}()
+	/*
+		if pkg.Body == nil {
+			return nil, errors.New("message body is empty, type:" + strconv.Itoa(int(typ)))
+		}*/
 	if pkg.Body == nil {
-		return nil, errors.New("message body is empty, type:" + strconv.Itoa(int(typ)))
+		return nil, nil
 	}
 	switch typ {
 	case 82: // group msg
@@ -427,14 +418,100 @@ func decodeOlPushServicePacket(c *QQClient, pkt *network.Packet) (any, error) {
 		}
 		return nil, nil
 	case 0x210: // friend event, 528
-		subType := pkg.ContentHead.SubType.Unwrap()
-		reader := binary.NewReader(pkg.Body.MsgContent)
-		log.Debugf("0x210: subType: %d, Msg: %s", subType, hex.EncodeToString(reader.ReadAvailable()))
+		subType := int64(pkg.ContentHead.SubType.Unwrap())
+		protobuf := pkg.Body.MsgContent
+		if decoder, ok := msg0x210Decoders[subType]; ok {
+			if err := decoder(c, protobuf); err != nil {
+				return nil, errors.Wrap(err, "decode online push 0x210 error")
+			}
+			log.Debugf("0x210: subType: %d, passed", subType)
+		} else {
+			c.debug("unknown online push 0x210 sub type 0x%v", strconv.FormatInt(subType, 16))
+		}
 		return nil, nil
 	case 0x2DC: // grp event, 732
 		subType := pkg.ContentHead.SubType.Unwrap()
-		reader := binary.NewReader(pkg.Body.MsgContent)
-		log.Debugf("0x2DC: subType: %d, Msg: %s", subType, hex.EncodeToString(reader.ReadAvailable()))
+		switch subType {
+		case 0x10, 0x11, 0x14, 0x15: // group notify msg
+			b := event.NotifyMsgBody{}
+			reader := binary.NewReader(pkg.Body.MsgContent)
+			reader.ReadBytes(7)
+			err = proto.Unmarshal(reader.ReadAvailable(), &b)
+			if err != nil {
+				return nil, err
+			}
+			groupCode := b.OptGroupId
+			if b.OptMsgRecall != nil {
+				for _, rm := range b.OptMsgRecall.RecalledMsgList {
+					if rm.MsgType == 2 {
+						continue
+					}
+					c.GroupMessageRecalledEvent.dispatch(c, &GroupMessageRecalledEvent{
+						GroupCode:   groupCode,
+						OperatorUin: c.GetUINByUID(b.OptMsgRecall.Uid),
+						AuthorUin:   c.GetUINByUID(rm.AuthorUid),
+						MessageId:   rm.Seq,
+						Time:        rm.Time,
+					})
+				}
+			}
+			if b.OptGeneralGrayTip != nil {
+				tip := notify.GeneralGrayTipInfo{}
+				err = proto.Unmarshal(b.OptGeneralGrayTip, &tip)
+				if err != nil {
+					return nil, err
+				}
+				c.grayTipProcessor(groupCode, &tip)
+			}
+			if b.OptMsgRedTips != nil {
+				if b.OptMsgRedTips.LuckyFlag == 1 { // 运气王提示
+					c.GroupNotifyEvent.dispatch(c, &GroupRedBagLuckyKingNotifyEvent{
+						GroupCode: groupCode,
+						Sender:    int64(b.OptMsgRedTips.SenderUin),
+						LuckyKing: int64(b.OptMsgRedTips.LuckyUin),
+					})
+				}
+			}
+			if b.QqGroupDigestMsg != nil {
+				digest := b.QqGroupDigestMsg
+				c.GroupDigestEvent.dispatch(c, &GroupDigestEvent{
+					GroupCode:         int64(digest.GroupCode),
+					MessageID:         int32(digest.Seq),
+					InternalMessageID: int32(digest.Random),
+					OperationType:     digest.OpType,
+					OperateTime:       digest.OpTime,
+					SenderUin:         c.GetUINByUID(digest.Sender),
+					OperatorUin:       c.GetUINByUID(digest.DigestOper),
+					SenderNick:        string(digest.SenderNick),
+					OperatorNick:      string(digest.OperNick),
+				})
+			}
+			if b.OptMsgGraytips != nil {
+				tip := notify.AIOGrayTipsInfo{}
+				err = proto.Unmarshal(b.OptMsgGraytips, &tip)
+				if err != nil {
+					return nil, err
+				}
+				c.msgGrayTipProcessor(groupCode, &tip)
+			}
+			log.Debugf("0x2DC: subType: %d, passed", subType)
+		case 0x0c: // 群内禁言
+			b := event.GroupMuteEvent{}
+			reader := binary.NewReader(pkg.Body.MsgContent)
+			err = proto.Unmarshal(reader.ReadAvailable(), &b)
+			if err != nil {
+				return nil, err
+			}
+			c.GroupMuteEvent.dispatch(c, &GroupMuteEvent{
+				GroupCode:   b.GroupUin,
+				OperatorUin: c.GetUINByUID(b.OperatorUid),
+				TargetUin:   c.GetUINByUID(b.Data.State.TargetUid),
+				Time:        b.Data.State.Duration,
+			})
+			log.Debugf("0x2DC: subType: %d, passed", subType)
+		default:
+			c.debug("unknown online push 0x2DC sub type 0x%v", strconv.FormatInt(int64(subType), 16))
+		}
 		return nil, nil
 		/*
 			case 33: // member increase

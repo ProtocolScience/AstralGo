@@ -13,16 +13,6 @@ type TextElement struct {
 	Content string
 }
 
-type VoiceElement struct {
-	Name string
-	Md5  []byte
-	Size int32
-	Url  string
-
-	// --- sending ---
-	Data []byte
-}
-
 type GroupVoiceElement struct {
 	Data []byte
 	Ptt  *msg.Ptt
@@ -252,10 +242,6 @@ func (e *GroupFileElement) Type() ElementType {
 }
 
 func (e *GroupVoiceElement) Type() ElementType {
-	return Voice
-}
-
-func (e *VoiceElement) Type() ElementType {
 	return Voice
 }
 

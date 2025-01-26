@@ -382,7 +382,10 @@ func (m *GroupMemberInfo) SetAdmin(flag bool) {
 }
 
 func (m *GroupMemberInfo) EditSpecialTitle(title string) {
-	if m.Group.SelfPermission() == Owner && len(title) <= 18 {
+	if len(title) > 18 {
+		title = title[:18]
+	}
+	if m.Group.SelfPermission() == Owner {
 		m.Group.client.editMemberSpecialTitle(m.Group.Code, m.Uin, title)
 		m.SpecialTitle = title
 	}

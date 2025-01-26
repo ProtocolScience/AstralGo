@@ -4,7 +4,12 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"github.com/ProtocolScience/AstralGo/client/nt"
+	"github.com/ProtocolScience/AstralGo/client/pb/msg"
+	log "github.com/sirupsen/logrus"
 	"io"
+	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -13,7 +18,6 @@ import (
 	"github.com/ProtocolScience/AstralGo/client/internal/network"
 	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x346"
 	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x388"
-	"github.com/ProtocolScience/AstralGo/client/pb/msg"
 	"github.com/ProtocolScience/AstralGo/client/pb/pttcenter"
 	"github.com/ProtocolScience/AstralGo/internal/proto"
 	"github.com/ProtocolScience/AstralGo/message"
@@ -47,8 +51,114 @@ func c2cPttExtraInfo() []byte {
 	return append([]byte(nil), w.Bytes()...)
 }
 
-// UploadVoice 将语音数据使用群语音通道上传到服务器, 返回 message.GroupVoiceElement 可直接发送
-func (c *QQClient) UploadVoice(target message.Source, voice io.ReadSeeker) (*message.GroupVoiceElement, error) {
+// UploadVoice 将语音数据使用群语音通道上传到服务器, 返回 message.NewTechVoiceElement 可直接发送
+func (c *QQClient) UploadVoice(target message.Source, voice io.ReadSeeker, during uint32) (*message.NewTechVoiceElement, error) {
+	switch target.SourceType {
+	case message.SourceGroup, message.SourcePrivate:
+		// ok
+	default:
+		return nil, errors.New("unsupported source type")
+	}
+	_, _ = voice.Seek(0, io.SeekStart)
+	hash, sha1, length, err := utils.ComputeMd5Sha1AndLength(voice)
+	if err != nil {
+		return nil, err
+	}
+	_, _ = voice.Seek(0, io.SeekStart)
+	fileName := strings.ToUpper(hex.EncodeToString(hash)) + ".amr"
+	cacheKey := fmt.Sprintf("%v-%v", target.SourceType, fileName)
+	if cacheData, ok := c.voiceUploadCache.Get(cacheKey); ok { //短暂缓存上传数据，防止同一个语音被反复上传
+		return &cacheData, nil
+	}
+	if during == 0 {
+		log.Debug("zero voice detected, setting to 8 seconds")
+		during = 8
+	}
+	media := nt.MediaParam{
+		Type: nt.AUDIO,
+		Params: []nt.DataParam{
+			nt.AudioParam{
+				SubFileType: 0,
+				Type:        1,
+				MD5:         hash,
+				SHA1:        sha1,
+				Size:        int64(length),
+				Filename:    fileName,
+				RecordTime:  during,
+			},
+		},
+	}
+	var resp interface{}
+	var commandId int32
+	var business uint32
+	switch target.SourceType {
+	case message.SourceGroup:
+		commandId = 1008
+		business = nt.BusinessGroupAudio
+		resp, err = c.sendAndWait(c.buildNewTechCommonGroupVoiceUpPacket(&media, target.PrimaryID))
+		if err != nil {
+			return nil, err
+		}
+	case message.SourcePrivate:
+		commandId = 1007
+		business = nt.BusinessFriendAudio
+		resp, err = c.sendAndWait(c.buildNewTechCommonFriendVoiceUpPacket(&media, target.PrimaryID))
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, errors.Wrap(err, "unsupported source type")
+	}
+
+	var access *nt.UploadAccess = nil
+	switch resp.(type) {
+	case nt.FileExists:
+		r := resp.(nt.FileExists)
+		access = &r.UploadAccess
+		break
+	case nt.RequireUpload:
+		r := resp.(nt.RequireUpload)
+		access = &r.UploadAccess
+		ext, e := resp.(nt.RequireUpload).RichMediaHighwayExt(voice, length, 0)
+		_, _ = voice.Seek(0, io.SeekStart)
+		input := highway.Transaction{
+			CommandID: commandId,
+			Body:      voice,
+			Size:      int64(length),
+			Sum:       hash,
+			Ticket:    c.highwaySession.SigSession,
+			Ext:       ext,
+		}
+		_, e = c.highwaySession.Upload(input)
+		if e != nil {
+			return nil, errors.Wrap(e, "upload failed")
+		}
+		break
+	}
+	if access == nil {
+		return nil, errors.New("upload failed, access failed")
+	}
+	if err != nil {
+		return nil, err
+	}
+	ret := message.NewTechVoiceElement{
+		FileUUID: access.MsgInfoBody[0].Index.FileUuid,
+		Md5:      hash,
+		Sha1:     sha1,
+		Size:     length,
+		Duration: during,
+		NTElem:   access.NtElem,
+		//Path:         access.MsgInfoBody[0].Picture.UrlPath,
+		//Domain:       access.MsgInfoBody[0].Picture.Domain,
+		BusinessType: business,
+		SrcUin:       uint64(c.Uin),
+	}
+	c.voiceUploadCache.Add(cacheKey, ret, time.Hour*12)
+	return &ret, nil
+}
+
+// UploadLegacyVoice 将语音数据使用群语音通道上传到服务器, 返回 message.NewTechVoiceElement 可直接发送（旧）
+func (c *QQClient) UploadLegacyVoice(target message.Source, voice io.ReadSeeker, during int32) (*message.NewTechVoiceElement, error) {
 	switch target.SourceType {
 	case message.SourceGroup, message.SourcePrivate:
 		// ok
@@ -87,6 +197,10 @@ func (c *QQClient) UploadVoice(target message.Source, voice io.ReadSeeker) (*mes
 	if len(rsp) == 0 {
 		return nil, errors.New("miss rsp")
 	}
+	if during == 0 {
+		log.Debug("zero voice detected, setting to 8 seconds")
+		during = 8
+	}
 	ptt := &msg.Ptt{
 		FileType:  proto.Int32(4),
 		SrcUin:    proto.Some(c.Uin),
@@ -94,6 +208,7 @@ func (c *QQClient) UploadVoice(target message.Source, voice io.ReadSeeker) (*mes
 		FileName:  proto.String(fmt.Sprintf("%x.amr", fh)),
 		FileSize:  proto.Int32(int32(length)),
 		BoolValid: proto.Bool(true),
+		Time:      proto.Some(during),
 	}
 	if target.SourceType == message.SourceGroup {
 		pkt := cmd0x388.D388RspBody{}
@@ -105,7 +220,10 @@ func (c *QQClient) UploadVoice(target message.Source, voice io.ReadSeeker) (*mes
 		}
 		ptt.PbReserve = []byte{8, 0, 40, 0, 56, 0}
 		ptt.GroupFileKey = pkt.TryupPttRsp[0].FileKey
-		return &message.GroupVoiceElement{Ptt: ptt}, nil
+		return &message.NewTechVoiceElement{
+			SrcUin:      uint64(c.Uin),
+			LegacyGroup: &message.GroupVoiceElement{Ptt: ptt},
+		}, nil
 	} else {
 		pkt := cmd0x346.C346RspBody{}
 		if err = proto.Unmarshal(rsp, &pkt); err != nil {
@@ -116,7 +234,10 @@ func (c *QQClient) UploadVoice(target message.Source, voice io.ReadSeeker) (*mes
 		}
 		ptt.FileUuid = pkt.ApplyUploadRsp.Uuid
 		ptt.Reserve = c2cPttExtraInfo()
-		return &message.PrivateVoiceElement{Ptt: ptt}, nil
+		return &message.NewTechVoiceElement{
+			SrcUin:       uint64(c.Uin),
+			LegacyFriend: &message.PrivateVoiceElement{Ptt: ptt},
+		}, nil
 	}
 }
 

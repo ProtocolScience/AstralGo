@@ -150,9 +150,11 @@ func (c *QQClient) buildGetOneDayRoamMsgRequest(target, lastMsgTime, random int6
 func (c *QQClient) buildFriendSendingPacket(target int64, msgSeq, r, pkgNum, pkgIndex, pkgDiv int32, time int64, m []message.IMessageElement) (uint16, []byte) {
 	var ptt *msg.Ptt
 	if len(m) > 0 {
-		if p, ok := m[0].(*message.PrivateVoiceElement); ok {
-			ptt = p.Ptt
-			m = []message.IMessageElement{}
+		if p, ok := m[0].(*message.NewTechVoiceElement); ok {
+			if p.LegacyFriend != nil {
+				ptt = p.LegacyFriend.Ptt
+				m = []message.IMessageElement{}
+			}
 		}
 	}
 	req := &msg.SendMessageRequest{

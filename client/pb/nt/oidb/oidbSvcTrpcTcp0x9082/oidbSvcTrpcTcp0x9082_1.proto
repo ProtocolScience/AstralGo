@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+option go_package = "github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0x9082";
+
+message Reaction {
+  int64 groupId = 2;
+  int32 seq = 3;
+  string iconId = 4;
+  int32 type = 5; // 2=emoji 1=qq self icon
+}

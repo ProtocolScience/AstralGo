@@ -110,15 +110,6 @@ const (
 	RedBag                      // 红包
 )
 
-const (
-	BusinessGroupImage  = 20
-	BusinessFriendImage = 10
-	BusinessGroupVideo  = 21
-	BusinessFriendVideo = 11
-	BusinessGroupAudio  = 22
-	BusinessFriendAudio = 12
-)
-
 func (s *Sender) IsAnonymous() bool {
 	return s.Uin == 80000000
 }
@@ -204,6 +195,10 @@ func (msg *GroupMessage) ToString() (res string) {
 		case *MarketFaceElement:
 			strBuilder.WriteString("[")
 			strBuilder.WriteString(e.Name)
+			strBuilder.WriteString("]")
+		case *NewTechVoiceElement:
+			strBuilder.WriteString("[")
+			strBuilder.WriteString(e.FileUUID)
 			strBuilder.WriteString("]")
 		case *NewTechImageElement:
 			strBuilder.WriteString("Image: ")
@@ -715,6 +710,19 @@ func ParseMessageElems(elems []*msg.Elem) []IMessageElement {
 							Sha1:         sha1,
 							Width:        index.Info.Width,
 							Height:       index.Info.Height,
+							BusinessType: uint32(businessType),
+						})
+					}
+				case nt.BusinessGroupAudio, nt.BusinessFriendAudio:
+					hash, err := hex.DecodeString(index.Info.FileHash)
+					sha1, err := hex.DecodeString(index.Info.FileSha1)
+					if err == nil {
+						res = append(res, &NewTechVoiceElement{
+							FileUUID:     extra.MsgInfoBody[0].Index.FileUuid,
+							Size:         index.Info.FileSize,
+							Md5:          hash,
+							Sha1:         sha1,
+							Duration:     extra.MsgInfoBody[0].Index.Info.Time,
 							BusinessType: uint32(businessType),
 						})
 					}

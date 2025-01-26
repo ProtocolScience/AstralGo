@@ -6,6 +6,7 @@ import (
 	"github.com/ProtocolScience/AstralGo/client/nt"
 	"github.com/ProtocolScience/AstralGo/client/pb/database"
 	"github.com/ProtocolScience/AstralGo/client/pb/trpc"
+	"github.com/ProtocolScience/AstralGo/client/process"
 	"github.com/ProtocolScience/AstralGo/internal/proto"
 	log "github.com/sirupsen/logrus"
 	"math/rand"
@@ -121,6 +122,7 @@ type QQClient struct {
 	groupSysMsgCache       *GroupSystemMessages
 	msgBuilders            syncx.Map[int32, *messageBuilder]
 	onlinePushCache        *utils.Cache[unit]
+	voiceUploadCache       *utils.Cache[message.NewTechVoiceElement]
 	heartbeatEnabled       bool
 	requestPacketRequestID atomic.Int32
 	groupSeq               atomic.Int32
@@ -162,7 +164,6 @@ var decoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"StatSvc.register":                             decodeClientRegisterResponse,
 	"StatSvc.ReqMSFOffline":                        decodeMSFOfflinePacket,
 	"MessageSvc.PushNotify":                        decodeSvcNotify,
-	"OnlinePush.ReqPush":                           decodeOnlinePushReqPacket,
 	"OnlinePush.PbPushTransMsg":                    decodeOnlinePushTransPacket,
 	"OnlinePush.SidTicketExpired":                  decodeSidExpiredPacket,
 	"ConfigPushSvc.PushReq":                        decodePushReqPacket,
@@ -203,6 +204,7 @@ func NewClientMd5(uin int64, passwordMd5 [16]byte) *QQClient {
 		msgSvcCache:       utils.NewCache[unit](time.Second * 15),
 		transCache:        utils.NewCache[unit](time.Second * 15),
 		onlinePushCache:   utils.NewCache[unit](time.Second * 15),
+		voiceUploadCache:  utils.NewCache[message.NewTechVoiceElement](time.Second * 15),
 		alive:             true,
 		highwaySession:    new(highway.Session),
 		firstLoginSucceed: false,
@@ -567,62 +569,40 @@ func (c *QQClient) ReloadGroupList() error {
 }
 
 func (c *QQClient) GetGroupList() ([]*GroupInfo, error) {
-	/*
-		rsp, err := c.sendAndWait(c.buildGroupListRequestPacket(EmptyBytes))
-		if err != nil {
-			return nil, err
-		}
-		interner := intern.NewStringInterner()
-		r := rsp.([]*GroupInfo)
-		wg := sync.WaitGroup{}
-		batch := 50
-		for i := 0; i < len(r); i += batch {
-			k := i + batch
-			if k > len(r) {
-				k = len(r)
-			}
-			wg.Add(k - i)
-			for j := i; j < k; j++ {
-				go func(g *GroupInfo, wg *sync.WaitGroup) {
-					defer wg.Done()
-					m, err := c.getGroupMembers(g, interner)
-					if err != nil {
-						return
-					}
-					g.Members = m
-					g.Name = interner.Intern(g.Name)
-				}(r[j], &wg)
-			}
-			wg.Wait()
-		}
-		return r, nil*/
 	rsp, err := c.sendAndWait(c.buildNewGroupListRequestPacket())
 	if err != nil {
 		return nil, err
 	}
-	interner := intern.NewStringInterner()
+	interned := intern.NewStringInterner()
 	r := rsp.([]*GroupInfo)
-	//wg := sync.WaitGroup{}
+
+	var bar process.Bar
+	wg := sync.WaitGroup{}
 	batch := 10
-	for i := 0; i < len(r); i += batch {
+	total := len(r)
+	bar.NewOption(0, int64(total), 50)
+	for i := 0; i < total; i += batch {
 		k := i + batch
-		if k > len(r) {
-			k = len(r)
+		if k > total {
+			k = total
 		}
-		//wg.Add(k - i)
+		wg.Add(k - i)
 		for j := i; j < k; j++ {
-			go func(g *GroupInfo /*wg *sync.WaitGroup*/) {
-				//defer wg.Done()
-				m, err := c.getGroupMembers(g, interner)
+			go func(g *GroupInfo, wg *sync.WaitGroup) {
+				defer wg.Done()
+				m, err := c.getGroupMembers(g, interned)
 				if err != nil {
 					return
 				}
 				g.Members = m
-				g.Name = interner.Intern(g.Name)
-			}(r[j] /*&wg*/)
+				g.Name = interned.Intern(g.Name)
+			}(r[j], &wg)
 		}
-		//wg.Wait()
+		wg.Wait()
+		bar.Play(int64(i))
 	}
+	bar.Play(int64(total))
+	bar.Finish()
 	return r, nil
 }
 
@@ -999,4 +979,22 @@ func (c *QQClient) GetElementImageUrl(e *message.NewTechImageElement) string {
 		return e.LegacyFriend.Url
 	}
 	return e.DownloadUrl() + c.GetRKeyString(nt.RKeyType(e.BusinessType))
+}
+func (c *QQClient) GetElementVoiceUrl(e *message.NewTechVoiceElement) string {
+	if e.Url != "" {
+		return e.Url
+	}
+	var i any
+	var err error
+	if e.BusinessType == nt.BusinessFriendAudio {
+		i, err = c.sendAndWait(c.buildNewTechCommonFriendVoiceDownPacket(e.FileUUID, c.Uin))
+	} else {
+		i, err = c.sendAndWait(c.buildNewTechCommonGroupVoiceDownPacket(e.FileUUID, c.GroupList[0].Code))
+	}
+	if err != nil {
+		log.Warnf("Failed to download voice: %v", err)
+		return ""
+	}
+	result := i.(nt.FileDownload).DownloadAccess
+	return "https://" + result.Domain + result.FileUrl + result.RKeyUrlParam
 }

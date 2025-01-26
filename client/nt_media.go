@@ -10,6 +10,91 @@ import (
 	"math/rand"
 )
 
+func (c *QQClient) buildNewTechCommonGroupVoiceDownPacket(uuid string, groupId int64) (uint16, []byte) {
+	return c.uniPacket("OidbSvcTrpcTcp.0x126e_200",
+		c.buildNewTechCommonVoiceDownPacket(uuid, 0, groupId, 0x126e),
+	)
+}
+
+func (c *QQClient) buildNewTechCommonFriendVoiceDownPacket(uuid string, friend int64) (uint16, []byte) {
+	return c.uniPacket("OidbSvcTrpcTcp.0x126d_200",
+		c.buildNewTechCommonVoiceDownPacket(uuid, friend, 0, 0x126d),
+	)
+}
+
+func (c *QQClient) buildNewTechCommonVoiceDownPacket(uuid string, friendUin int64, groupId int64, oidb int32) []byte {
+	var scene media.SceneInfo
+	if groupId != 0 {
+		scene = media.SceneInfo{
+			RequestType:  1,
+			BusinessType: 3,
+			SceneType:    2,
+			Group: &media.NTGroupInfo{
+				GroupUin: uint32(groupId),
+			},
+		}
+	} else {
+		target := utils.UIDGlobalCaches.GetByUIN(friendUin)
+		if target == nil {
+			target = utils.UIDGlobalCaches.GetByUIN(c.Uin)
+		}
+		scene = media.SceneInfo{
+			RequestType:  2,
+			BusinessType: 3,
+			SceneType:    1,
+			C2C: &media.C2CUserInfo{
+				AccountType: 2,
+				TargetUid:   target.UID,
+			},
+		}
+	}
+
+	req := media.NTV2RichMediaReq{
+		ReqHead: &media.MultiMediaReqHead{
+			Common: &media.CommonHead{
+				RequestId: 4,
+				Command:   200,
+			},
+			Scene: &scene,
+			Client: &media.ClientMeta{
+				AgentType: 2,
+			},
+		},
+		Download: &media.DownloadReq{
+			Node: &media.IndexNode{
+				Info: &media.FileInfo{
+					Type: &media.FileType{
+						Type:        3,
+						VoiceFormat: 1,
+					},
+				},
+				FileUuid: uuid,
+				StoreId:  1,
+			},
+			Download: &media.DownloadExt{
+				Video: &media.VideoDownloadExt{
+					BusiType:    0,
+					SubBusiType: 0,
+					SceneType:   0,
+				},
+			},
+		},
+	}
+	b, _ := proto.Marshal(&req)
+	return c.packOIDBPackage(oidb, 200, b)
+}
+func (c *QQClient) buildNewTechCommonGroupVoiceUpPacket(info *nt.MediaParam, groupId int64) (uint16, []byte) {
+	return c.uniPacket("OidbSvcTrpcTcp.0x126e_100",
+		c.buildNewTechMediaUploadStorePacket(info, groupId, 0, 0x126e),
+	)
+}
+
+func (c *QQClient) buildNewTechCommonFriendVoiceUpPacket(info *nt.MediaParam, friend int64) (uint16, []byte) {
+	return c.uniPacket("OidbSvcTrpcTcp.0x126d_100",
+		c.buildNewTechMediaUploadStorePacket(info, 0, friend, 0x126d),
+	)
+}
+
 func (c *QQClient) buildNewTechCommonGroupImageUpPacket(info *nt.MediaParam, groupId int64) (uint16, []byte) {
 	return c.uniPacket("OidbSvcTrpcTcp.0x11c4_100",
 		c.buildNewTechMediaUploadStorePacket(info, groupId, 0, 0x11c4),
@@ -220,6 +305,7 @@ func decodeNewTechMediaResponse(_ *QQClient, pkt *network.Packet) (any, error) {
 		info := body.Download.Info
 		return nt.FileDownload{
 			DownloadAccess: nt.DownloadAccess{
+				Domain:       info.Domain,
 				FileUrl:      info.UrlPath,
 				RKeyUrlParam: body.Download.RKeyParam,
 			},

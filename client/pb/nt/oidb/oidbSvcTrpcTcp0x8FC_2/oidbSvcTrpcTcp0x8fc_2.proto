@@ -1,0 +1,15 @@
+syntax = "proto3";
+option go_package = "github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0x8FC_2";
+
+message Body {
+  string targetUid = 1;
+  string specialTitle = 5;
+  sint32 expiredTime = 6;
+  string uinName = 7;
+  string targetName = 8;
+}
+
+message Request {
+  uint32 groupUin = 1;
+  Body body = 3;
+}

@@ -198,11 +198,13 @@ func (c *QQClient) parsePrivateMessage(msg *msg.Message) *message.PrivateMessage
 		Elements: func() []message.IMessageElement {
 			if msg.Body.RichText.Ptt != nil {
 				return []message.IMessageElement{
-					&message.VoiceElement{
-						Name: msg.Body.RichText.Ptt.FileName.Unwrap(),
-						Md5:  msg.Body.RichText.Ptt.FileMd5,
-						Size: msg.Body.RichText.Ptt.FileSize.Unwrap(),
-						Url:  string(msg.Body.RichText.Ptt.DownPara),
+					&message.NewTechVoiceElement{
+						SrcUin:       uint64(c.Uin),
+						FileUUID:     msg.Body.RichText.Ptt.FileName.Unwrap(),
+						Md5:          msg.Body.RichText.Ptt.FileMd5,
+						Size:         uint32(msg.Body.RichText.Ptt.FileSize.Unwrap()),
+						Url:          string(msg.Body.RichText.Ptt.DownPara),
+						LegacyFriend: &message.PrivateVoiceElement{Ptt: msg.Body.RichText.Ptt},
 					},
 				}
 			}

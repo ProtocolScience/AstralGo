@@ -1,0 +1,115 @@
+syntax = "proto3";
+option go_package = "github.com/ProtocolScience/AstralGo/client/pb/nt/event";
+
+message TemplParam {
+  string name = 1;
+  string value = 2;
+}
+
+message GeneralGrayTipInfo {
+  int64 busiType = 1;
+  int64 busiId = 2;
+  int32 ctrlFlag = 3;
+  int32 c2cType = 4;
+  int32 serviceType = 5;
+  int64 templId = 6;
+  repeated TemplParam msgTemplParam = 7;
+  bytes content = 8;
+  int64 tipsSeqId = 10;
+  bytes pbReserv = 100;
+}
+
+message WithDrawWordingInfo {
+  int32 int32ItemId = 1;
+  string itemName = 2;
+}
+
+message RedGrayTipsInfo {
+  uint32 showLatest = 1;
+  uint64 senderUin = 2;
+  uint64 receiverUin = 3;
+  string senderRichContent = 4;
+  string receiverRichContent = 5;
+  bytes authKey = 6;
+  sint32 msgType = 7;
+  uint32 luckyFlag = 8;
+  uint32 hideFlag = 9;
+  uint64 luckyUin = 12;
+}
+
+message NotifyMsgBody {
+  int32 optEnumType = 1;
+  int64 optGroupId = 4;
+  bytes optMsgGraytips = 5;
+  MessageRecallReminder optMsgRecall = 11;
+  bytes optGeneralGrayTip = 26;
+  RedGrayTipsInfo optMsgRedTips = 9;
+  QQGroupDigestMsg qqGroupDigestMsg = 33;
+  int32 serviceType = 13;
+}
+
+message QQGroupDigestMsg {
+  uint64 groupCode = 1;
+  uint32 seq = 2;
+  uint32 random = 3;
+  int32 opType = 4;
+  string sender = 5;
+  string digestOper = 6;
+  uint32 opTime = 7;
+  uint32 lastestMsgSeq = 8;
+  bytes operNick = 9;
+  bytes senderNick = 10;
+  int32 extInfo = 11;
+}
+
+message AIOGrayTipsInfo {
+  int32 optUint32ShowLastest = 1;
+  bytes optBytesContent = 2;
+  int32 optUint32Remind = 3;
+  bytes optBytesBrief = 4;
+  int64 receiverUin = 5;
+  int32 reliaoAdminOpt = 6;
+  int32 robotGroupOpt = 7;
+}
+
+message MessageRecallReminder {
+  string uid = 1;
+  bytes nickname = 2;
+  repeated MessageMeta recalledMsgList = 3;
+  bytes reminderContent = 4;
+  bytes userdef = 5;
+  int32 groupType = 6;
+  int32 opType = 7;
+  string adminUid = 8;
+  WithDrawWordingInfo msgWordingInfo = 9;
+
+  message MessageMeta {
+    int32 seq = 1;
+    int32 time = 2;
+    int32 msgRandom = 3;
+    int32 msgType = 4;
+    int32 msgFlag = 5;
+    string authorUid = 6;
+    int32 isAnonyMsg = 7;
+  }
+}
+
+
+message GroupMuteEvent {
+  int64 groupUin = 1;
+  int32 subType = 2;
+  int32 field3 = 3;
+  string operatorUid = 4;
+  GroupMuteData data = 5;
+
+  message GroupMuteData {
+    int32 timestamp = 1;
+    int32 type = 2;
+    GroupMuteState state = 3;
+
+    message GroupMuteState {
+      string targetUid = 1;
+      int32 duration = 2;
+    }
+  }
+}

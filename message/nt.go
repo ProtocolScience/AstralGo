@@ -10,6 +10,21 @@ import (
 	"strings"
 )
 
+type NewTechVoiceElement struct {
+	FileName     string
+	FileUUID     string
+	Size         uint32
+	Duration     uint32
+	Md5          []byte
+	Sha1         []byte
+	NTElem       []byte
+	BusinessType uint32
+	Url          string
+	SrcUin       uint64
+	LegacyGroup  *GroupVoiceElement
+	LegacyFriend *PrivateVoiceElement
+}
+
 type NewTechImageElement struct {
 	FileUUID     string
 	Size         uint32
@@ -28,6 +43,80 @@ type NewTechImageElement struct {
 	LegacyFriend *FriendImageElement
 }
 
+func (e *NewTechVoiceElement) Type() ElementType {
+	return Voice
+}
+func (e *NewTechVoiceElement) Pack() (r []*msg.Elem) {
+	if e.LegacyGroup != nil || e.LegacyFriend != nil {
+		return []*msg.Elem{}
+	}
+	if e.NTElem != nil {
+		// Create the element and return
+		elem := &msg.Elem{CommonElem: &msg.CommonElem{
+			ServiceType:  proto.Int32(48),
+			PbElem:       e.NTElem,
+			BusinessType: proto.Int32(int32(e.BusinessType)),
+		}}
+		return []*msg.Elem{elem}
+	}
+	// Create the message info body
+	msgInfoBody := []*media.MsgInfoBody{
+		{
+			Index: &media.IndexNode{
+				Info: &media.FileInfo{
+					FileSize: e.Size,
+					FileHash: hex.EncodeToString(e.Md5),
+					FileSha1: hex.EncodeToString(e.Sha1),
+					FileName: e.FileName,
+					Type: &media.FileType{
+						Type:        3,
+						VoiceFormat: 1,
+					},
+					Time: e.Duration,
+				},
+				FileUuid: e.FileUUID,
+				StoreId:  1,
+			},
+		},
+	}
+
+	// Create the PttExtBizInfo
+	pttScene := uint32(1)
+	if e.BusinessType == nt.BusinessGroupAudio {
+		pttScene = uint32(2)
+	}
+
+	extBizInfo := &media.ExtBizInfo{
+		Pic:   &media.PicExtBizInfo{},
+		Video: &media.VideoExtBizInfo{},
+		Ptt: &media.PttExtBizInfo{
+			SrcUin:            e.SrcUin,
+			PttScene:          pttScene,
+			BytesReserve:      []byte{0x03, 0x00, 0x38, 0x00},
+			BytesGeneralFlags: []byte{0x9a, 0x01, 0x0b, 0xaa, 0x03, 0x08, 0x08, 0x04, 0x12, 0x04, 0x00, 0x00, 0x00, 0x00},
+		},
+	}
+
+	// Create the message info
+	msgInfo := media.MsgInfo{
+		MsgInfoBody: msgInfoBody,
+		ExtBizInfo:  extBizInfo,
+	}
+
+	// Marshal the message info to protobuf
+	pbElem, _ := proto.Marshal(&msgInfo)
+
+	// Create the common element
+	commonElem := msg.CommonElem{
+		ServiceType:  proto.Int32(48),
+		PbElem:       pbElem,
+		BusinessType: proto.Int32(int32(e.BusinessType)),
+	}
+
+	// Create the element and return
+	elem := &msg.Elem{CommonElem: &commonElem}
+	return []*msg.Elem{elem}
+}
 func (e *NewTechImageElement) GetLegacyOrSelf() IMessageElement {
 	if e.LegacyGuild != nil {
 		return e.LegacyGuild
@@ -105,7 +194,7 @@ func (e *NewTechImageElement) Pack() (r []*msg.Elem) {
 		commonElem := msg.CommonElem{
 			ServiceType:  proto.Int32(48),
 			PbElem:       pbElem,
-			BusinessType: proto.Int32(nt.BusinessGroupImage),
+			BusinessType: proto.Int32(int32(e.BusinessType)),
 		}
 		elem := &msg.Elem{CommonElem: &commonElem}
 		return []*msg.Elem{elem}

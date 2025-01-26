@@ -303,19 +303,22 @@ func (c *QQClient) sendAndWait(seq uint16, pkt []byte, params ...network.Request
 		return nil, err
 	}
 
+	timeout := 15
+	if v, ok := p["timeout"]; ok {
+		timeout = v.(int)
+	}
+
 	retry := 0
 	for {
 		select {
 		case rsp := <-ch:
 			return rsp.Response, rsp.Error
-		case <-time.After(time.Second * 15):
+		case <-time.After(time.Second):
 			retry++
-			if retry < 2 {
-				_ = c.sendPacket(pkt)
-				continue
+			if retry > timeout {
+				c.handlers.Delete(seq)
+				return nil, errors.New("Packet timed out in sendAndWait")
 			}
-			c.handlers.Delete(seq)
-			return nil, errors.New("Packet timed out")
 		}
 	}
 }
@@ -375,7 +378,7 @@ func (c *QQClient) sendAndWaitDynamic(seq uint16, pkt []byte) ([]byte, error) {
 		return rsp, nil
 	case <-time.After(time.Second * 15):
 		c.handlers.Delete(seq)
-		return nil, errors.New("Packet timed out")
+		return nil, errors.New("Packet timed out in sendAndWaitDynamic")
 	}
 }
 

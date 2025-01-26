@@ -203,6 +203,7 @@ type RequireUpload struct {
 type DownloadAccess struct {
 	FileUrl      string
 	RKeyUrlParam string
+	Domain       string
 }
 
 type FileDownload struct {
