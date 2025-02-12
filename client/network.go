@@ -471,6 +471,9 @@ func (c *QQClient) netLoop() {
 		}
 		if resp.EncryptType == network.EncryptTypeEmptyKey {
 			m, e := c.oicq.Unmarshal(resp.Body)
+			if errors.Is(e, oicq.ErrEmptyData) {
+				continue //ignore empty data
+			}
 			if e != nil {
 				c.error("decrypt payload error: %v, Data: %s, Cmd: %s", e, hex.EncodeToString(resp.Body), resp.CommandName)
 				if errors.Is(e, oicq.ErrUnknownFlag) {
