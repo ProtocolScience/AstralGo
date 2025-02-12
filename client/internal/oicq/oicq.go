@@ -90,11 +90,15 @@ func (c *Codec) Marshal(m *Message) []byte {
 }
 
 var (
+	ErrEmptyData          = errors.New("unknown empty data")
 	ErrUnknownFlag        = errors.New("unknown flag")
 	ErrUnknownEncryptType = errors.New("unknown encrypt type")
 )
 
 func (c *Codec) Unmarshal(data []byte) (*Message, error) {
+	if len(data) == 0 {
+		return nil, ErrEmptyData
+	}
 	reader := binary.NewReader(data)
 	flag := reader.ReadByte()
 	if flag != 0x2 {

@@ -470,10 +470,10 @@ func (c *QQClient) netLoop() {
 			continue
 		}
 		if resp.EncryptType == network.EncryptTypeEmptyKey {
-			m, err := c.oicq.Unmarshal(resp.Body)
-			if err != nil {
-				c.error("decrypt payload error: %v, Data: %s, Cmd: %s", err, hex.EncodeToString(resp.Body), resp.CommandName)
-				if errors.Is(err, oicq.ErrUnknownFlag) {
+			m, e := c.oicq.Unmarshal(resp.Body)
+			if e != nil {
+				c.error("decrypt payload error: %v, Data: %s, Cmd: %s", e, hex.EncodeToString(resp.Body), resp.CommandName)
+				if errors.Is(e, oicq.ErrUnknownFlag) {
 					go c.quickReconnect()
 				}
 				continue
