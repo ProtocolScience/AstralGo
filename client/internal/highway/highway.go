@@ -236,8 +236,8 @@ func (s *Session) connect(addr Addr) (persistConn, error) {
 func (s *Session) nextAddr() Addr {
 	s.addrMu.Lock()
 	defer s.addrMu.Unlock()
-	addr := s.SsoAddr[s.idx]
 	s.idx = (s.idx + 1) % len(s.SsoAddr)
+	addr := s.SsoAddr[s.idx]
 	return addr
 }
 

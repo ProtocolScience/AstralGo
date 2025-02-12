@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/md5"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -698,7 +699,16 @@ func decodeOnlinePushTransPacket(c *QQClient, pkt *network.Packet) (any, error) 
 		target := int64(uint32(data.ReadInt32()))
 		typ := int32(data.ReadByte())
 		operator := int64(uint32(data.ReadInt32()))
-		if g := c.FindGroupByUin(info.FromUin.Unwrap()); g != nil {
+		groupId := info.FromUin.Unwrap()
+		group := c.FindGroupByUin(groupId)
+		var g *GroupInfo
+		if group == nil {
+			g, err = c.ReloadGroup(groupId)
+			if err != nil {
+				log.Errorf("Cannot Found OnlinePush GroupId: %v", groupId)
+			}
+		}
+		if g != nil {
 			groupLeaveLock.Lock()
 			defer groupLeaveLock.Unlock()
 			switch typ {
@@ -713,9 +723,6 @@ func decodeOnlinePushTransPacket(c *QQClient, pkt *network.Packet) (any, error) 
 					})
 				}
 			case 0x03:
-				if err = c.ReloadGroupList(); err != nil {
-					return nil, err
-				}
 				if target == c.Uin {
 					c.GroupLeaveEvent.dispatch(c, &GroupLeaveEvent{
 						Group:    g,
@@ -752,9 +759,6 @@ func decodeOnlinePushTransPacket(c *QQClient, pkt *network.Packet) (any, error) 
 					Operator: g.FindMember(operator),
 					Time:     int64(info.MsgTime.Unwrap()),
 				})
-				if err = c.ReloadGroupList(); err != nil {
-					return nil, err
-				}
 			}
 		}
 	}

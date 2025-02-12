@@ -312,15 +312,23 @@ func (c *QQClient) sendAndWait(seq uint16, pkt []byte, params ...network.Request
 	for {
 		select {
 		case rsp := <-ch:
+			if timeout <= 0 {
+				print("Done!\n")
+			}
 			return rsp.Response, rsp.Error
 		case <-time.After(time.Second):
-			retry++
-			if retry > timeout {
-				c.handlers.Delete(seq)
-				return nil, errors.New("Packet timed out in sendAndWait")
+			if timeout <= 0 {
+				print(".")
+			} else {
+				retry++
+				if retry > timeout {
+					c.handlers.Delete(seq)
+					return nil, errors.New("Packet timed out in sendAndWait")
+				}
 			}
 		}
 	}
+
 }
 
 // sendPacket 向服务器发送一个数据包
@@ -435,6 +443,15 @@ func (c *QQClient) netLoop() {
 		resp, err := c.transport.ReadResponse(data)
 		// pkt, err := packets.ParseIncomingPacket(data, c.sig.D2Key)
 		if err != nil {
+
+			info, ok := c.handlers.LoadAndDelete(uint16(resp.SequenceID))
+			if ok {
+				info.fun(&network.Packet{
+					SequenceId:  uint16(resp.SequenceID),
+					CommandName: resp.CommandName,
+				}, err)
+			}
+
 			c.error("parse incoming packet error: %v", err)
 			if errors.Is(err, network.ErrSessionExpired) || errors.Is(err, network.ErrPacketDropped) {
 				c.Disconnect()

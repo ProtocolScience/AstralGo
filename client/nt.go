@@ -16,9 +16,9 @@ import (
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE7_3"
 	"github.com/ProtocolScience/AstralGo/client/pb/trpc"
 	"github.com/ProtocolScience/AstralGo/internal/proto"
+	"github.com/ProtocolScience/AstralGo/utils"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"runtime/debug"
 	"strconv"
 )
 
@@ -31,6 +31,8 @@ var NTDecoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"trpc.msg.olpush.OlPushService.MsgPush":                  decodeOlPushServicePacket,
 	"trpc.msg.register_proxy.RegisterProxy.PushParams":       decodePushParamsPacket,
 	"trpc.msg.register_proxy.RegisterProxy.InfoSyncPush":     ignoreDecoder,
+	"OidbSvcTrpcTcp.0x9144":                                  decodePrint,
+	"OidbSvcTrpcTcp.0x92ed":                                  decodePrint,
 	"OidbSvcTrpcTcp.0x9082_1":                                ignoreDecoder, //群反应
 	"OidbSvcTrpcTcp.0x9082_2":                                ignoreDecoder, //群反应
 	"OidbSvcTrpcTcp.0x8fc_2":                                 ignoreDecoder, //群头衔
@@ -56,7 +58,11 @@ func init() {
 		network.NTListCommands = append(network.NTListCommands, k)
 	}
 }
-
+func decodePrint(c *QQClient, pkt *network.Packet) (any, error) {
+	log.Warnf("Rev Cmd: " + pkt.CommandName)
+	log.Warnf("Rev Body: " + hex.EncodeToString(pkt.Payload))
+	return nil, nil
+}
 func decodeConnKeyResponse(c *QQClient, pkt *network.Packet) (any, error) {
 	rsp := cmd0x6ff.C501RspBody{}
 	if err := proto.Unmarshal(pkt.Payload, &rsp); err != nil {
@@ -271,18 +277,17 @@ func decodeOlPushServicePacket(c *QQClient, pkt *network.Packet) (any, error) {
 	}
 	pkg := msg.Message
 	typ := pkg.ContentHead.Type
-	defer func() {
-		if r := recover(); r != nil {
-			c.error("recovered from panic: %v\n%s", r, debug.Stack())
-			c.error("protobuf data: %x", pkt.Payload)
-		}
-	}()
 	/*
 		if pkg.Body == nil {
 			return nil, errors.New("message body is empty, type:" + strconv.Itoa(int(typ)))
 		}*/
 	if pkg.Body == nil {
 		return nil, nil
+	}
+	c.InitWait.Wait()
+	if pkg.ResponseHead != nil {
+		utils.UIDGlobalCaches.Add(pkg.ResponseHead.FromUid.Unwrap(), int64(pkg.ResponseHead.FromUin))
+		utils.UIDGlobalCaches.Add(pkg.ResponseHead.ToUid.Unwrap(), int64(pkg.ResponseHead.ToUin))
 	}
 	switch typ {
 	case 82: // group msg

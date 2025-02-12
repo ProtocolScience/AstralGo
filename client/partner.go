@@ -1,0 +1,36 @@
+package client
+
+import (
+	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/partner"
+	"github.com/RomiChan/protobuf/proto"
+)
+
+// SendIntimateSpaceSign 情侣空间签到(开发中)
+func (c *QQClient) SendIntimateSpaceSign() {
+	//log.Print("UID: " + utils.UIDGlobalCaches.GetByUIN(1619180854).UID)
+
+	req := &partner.Request{
+		Type: "partner",
+		Uid:  "I_Smbr7xzEkiU4DobT8gk7vo",
+		//需要通过 IntimateSpace.trpc.qzone.intimate_space_profileaccess.SpaceprofileAccess.GetISpaceManegePage 拿
+		//00 00 02 90 08 09 12 1B 56 31 5F 41 4E 44 5F 53 51 5F 39 2E 31 2E 33 35 5F 38 37 30 38 5F 59 59 42 5F 44 1A 88 04 69 3D 35 63 30 61 65 34 39 66 30 66 65 37 38 65 33 37 65 35 37 34 30 35 65 38 31 30 30 30 31 36 61 31 39 31 31 64 26 69 6D 73 69 3D 35 63 30 61 65 34 39 66 30 66 65 37 38 65 33 37 65 35 37 34 30 35 65 38 31 30 30 30 31 36 61 31 39 31 31 64 26 6D 61 63 3D 30 32 3A 30 30 3A 30 30 3A 30 30 3A 30 30 3A 30 30 26 6D 3D 50 69 78 65 6C 20 36 26 6F 3D 31 34 26 61 3D 33 34 26 73 64 3D 30 26 63 36 34 3D 31 26 73 63 3D 31 26 70 3D 31 30 38 30 2A 32 32 30 39 26 61 69 64 3D 35 63 30 61 65 34 39 66 30 66 65 37 38 65 33 37 65 35 37 34 30 35 65 38 31 30 30 30 31 36 61 31 39 31 31 64 26 66 3D 47 6F 6F 67 6C 65 26 6D 6D 3D 37 36 31 35 26 63 66 3D 31 37 36 30 26 63 63 3D 38 26 71 69 6D 65 69 3D 35 63 30 61 65 34 39 66 30 66 65 37 38 65 33 37 65 35 37 34 30 35 65 38 31 30 30 30 31 36 61 31 39 31 31 64 26 71 69 6D 65 69 33 36 3D 35 63 30 61 65 34 39 66 30 66 65 37 38 65 33 37 65 35 37 34 30 35 65 38 31 30 30 30 31 36 61 31 39 31 31 64 26 73 68 61 72 70 50 3D 31 26 6E 3D 34 67 26 73 75 70 70 6F 72 74 5F 78 73 6A 5F 6C 69 76 65 3D 74 72 75 65 26 63 6C 69 65 6E 74 5F 6D 6F 64 3D 64 65 66 61 75 6C 74 26 74 69 6D 65 7A 6F 6E 65 3D 41 73 69 61 2F 53 68 61 6E 67 68 61 69 26 6D 61 74 65 72 69 61 6C 5F 73 64 6B 5F 76 65 72 73 69 6F 6E 3D 34 2E 34 2E 35 26 76 68 32 36 35 3D 74 72 75 65 26 72 65 66 72 65 73 68 72 61 74 65 3D 39 30 26 68 77 6C 65 76 65 6C 3D 33 26 73 75 70 68 64 72 3D 32 32 26 69 73 5F 74 65 65 6E 61 67 65 72 5F 6D 6F 64 3D 30 26 6C 69 76 65 48 32 36 35 3D 2D 31 26 62 6D 73 74 3D 31 26 41 56 31 3D 31 26 64 65 76 69 63 65 74 79 70 65 3D 50 48 4F 4E 45 22 1C 0A 1A 0A 18 75 5F 6B 6C 75 41 55 63 47 4B 77 66 50 42 63 44 4B 30 44 75 34 79 75 41 2A 1E 31 36 31 39 31 38 30 38 35 34 5F 30 31 32 39 31 35 32 35 30 39 38 36 31 5F 32 35 35 32 38 52 0E 0A 08 66 63 2D 61 70 70 69 64 12 02 39 38 52 12 0A 0E 65 6E 76 69 72 6F 6E 6D 65 6E 74 5F 69 64 12 00
+		Id:      "2",
+		SubType: "intimate",
+	}
+	payload, _ := proto.Marshal(req)
+	seq, pkt := c.uniPacket("OidbSvcTrpcTcp.0x9144",
+		c.packOIDBPackage(0x9144, 1, payload),
+	)
+	_, err := c.sendAndWait(seq, pkt)
+	if err != nil {
+		return
+	}
+	/*
+		seq, pkt = c.uniPacket("OidbSvcTrpcTcp.0x92ed",
+			c.packOIDBPackage(0x92ed, 1, payload),
+		)
+		_, err = c.sendAndWait(seq, pkt)
+		if err != nil {
+			return
+		}*/
+}

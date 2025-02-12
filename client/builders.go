@@ -974,7 +974,7 @@ func (c *QQClient) buildNewGroupListRequestPacket() (uint16, []byte, network.Req
 	b, _ := proto.Marshal(request)
 	payload := c.packOIDBPackage(0xfe5, 2, b)
 	seq, data := c.uniPacket("OidbSvcTrpcTcp.0xfe5_2", payload)
-	return seq, data, network.RequestParams{"timeout": 120}
+	return seq, data, network.RequestParams{"timeout": -1}
 }
 
 // friendlist.GetTroopListReqV2

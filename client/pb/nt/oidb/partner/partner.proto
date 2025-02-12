@@ -1,0 +1,9 @@
+syntax = "proto3";
+option go_package = "github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/partner";
+
+message request{
+  string type = 1;
+  string uid = 2;
+  string id = 3;
+  string sub_type = 4;
+}

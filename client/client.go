@@ -48,6 +48,7 @@ type QQClient struct {
 	Nickname      string
 	Age           uint16
 	Gender        uint16
+	InitWait      sync.WaitGroup
 	FriendList    []*FriendInfo
 	GroupList     []*GroupInfo
 	OnlineClients []*OtherClientInfo
@@ -567,7 +568,23 @@ func (c *QQClient) ReloadGroupList() error {
 	c.GroupList = list
 	return nil
 }
-
+func (c *QQClient) ReloadGroup(groupCode int64) (*GroupInfo, error) {
+	interned := intern.NewStringInterner()
+	g, err := c.GetGroupInfo(groupCode)
+	if err != nil {
+		return nil, err
+	}
+	m, err := c.getGroupMembers(g, interned)
+	if err != nil {
+		return nil, err
+	}
+	g.Members = m
+	g.Name = interned.Intern(g.Name)
+	if c.FindGroupByUin(groupCode) == nil {
+		c.GroupList = append(c.GroupList, g)
+	}
+	return g, nil
+}
 func (c *QQClient) GetGroupList() ([]*GroupInfo, error) {
 	rsp, err := c.sendAndWait(c.buildNewGroupListRequestPacket())
 	if err != nil {
@@ -578,7 +595,7 @@ func (c *QQClient) GetGroupList() ([]*GroupInfo, error) {
 
 	var bar process.Bar
 	wg := sync.WaitGroup{}
-	batch := 10
+	batch := 25
 	total := len(r)
 	bar.NewOption(0, int64(total), 50)
 	for i := 0; i < total; i += batch {
@@ -611,20 +628,20 @@ func (c *QQClient) GetGroupMembers(group *GroupInfo) ([]*GroupMemberInfo, error)
 	return c.getGroupMembers(group, interner)
 }
 
+/*
 func (c *QQClient) getGroupMembers(group *GroupInfo, interner *intern.StringInterner) ([]*GroupMemberInfo, error) {
+	var nextUin int64
 	var list []*GroupMemberInfo
-	var requestToken string
 	for {
-		data, err := c.sendAndWait(c.buildNewGetTroopMemberListRequestPacket(group.Code, nil, nil, requestToken))
+		data, err := c.sendAndWait(c.buildGroupMemberListRequestPacket(group.Uin, group.Code, nextUin))
 		if err != nil {
-			log.Warnf("get group members failed! group: %d err: %v ", group.Code, err.Error())
 			return nil, err
 		}
 		if data == nil {
 			return nil, errors.New("group members list is unavailable: rsp is nil")
 		}
-		rsp := data.(*NTGroupMemberListResponse)
-		requestToken = rsp.nextToken
+		rsp := data.(*groupMemberListResponse)
+		nextUin = rsp.NextUin
 		for _, m := range rsp.list {
 			m.Group = group
 			if m.Uin == group.OwnerUin {
@@ -635,6 +652,62 @@ func (c *QQClient) getGroupMembers(group *GroupInfo, interner *intern.StringInte
 			m.SpecialTitle = interner.Intern(m.SpecialTitle)
 		}
 		list = append(list, rsp.list...)
+		if nextUin == 0 {
+			sort.Slice(list, func(i, j int) bool {
+				return list[i].Uin < list[j].Uin
+			})
+			return list, nil
+		}
+	}
+}*/
+
+func (c *QQClient) getGroupMembers(group *GroupInfo, interner *intern.StringInterner) ([]*GroupMemberInfo, error) {
+	var nextUin int64
+	var list []*GroupMemberInfo
+	var requestToken string
+	for {
+		if c.version().Protocol == auth.AndroidWatch { //Legacy Packet，手表目前没完全NT化，需要用这个包
+			data, err := c.sendAndWait(c.buildGroupMemberListRequestPacket(group.Uin, group.Code, nextUin))
+			if err != nil {
+				return nil, err
+			}
+			if data == nil {
+				return nil, errors.New("group members list is unavailable: rsp is nil")
+			}
+			rsp := data.(*groupMemberListResponse)
+			nextUin = rsp.NextUin
+			for _, m := range rsp.list {
+				m.Group = group
+				if m.Uin == group.OwnerUin {
+					m.Permission = Owner
+				}
+				m.CardName = interner.Intern(m.CardName)
+				m.Nickname = interner.Intern(m.Nickname)
+				m.SpecialTitle = interner.Intern(m.SpecialTitle)
+			}
+			list = append(list, rsp.list...)
+		} else {
+			data, err := c.sendAndWait(c.buildNewGetTroopMemberListRequestPacket(group.Code, nil, nil, requestToken))
+			if err != nil {
+				log.Warnf("get group members failed! group: %d err: %v ", group.Code, err.Error())
+				return nil, err
+			}
+			if data == nil {
+				return nil, errors.New("group members list is unavailable: rsp is nil")
+			}
+			rsp := data.(*NTGroupMemberListResponse)
+			requestToken = rsp.nextToken
+			for _, m := range rsp.list {
+				m.Group = group
+				if m.Uin == group.OwnerUin {
+					m.Permission = Owner
+				}
+				m.CardName = interner.Intern(m.CardName)
+				m.Nickname = interner.Intern(m.Nickname)
+				m.SpecialTitle = interner.Intern(m.SpecialTitle)
+			}
+			list = append(list, rsp.list...)
+		}
 		if requestToken == "" {
 			sort.Slice(list, func(i, j int) bool {
 				return list[i].Uin < list[j].Uin

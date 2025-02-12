@@ -24,10 +24,10 @@ var (
 	AppVersions = map[ProtocolType]*AppVersion{
 		AndroidPhone: {
 			ApkId:           "com.tencent.mobileqq",
-			AppId:           537254149,
-			SubAppId:        537254149,
+			AppId:           537265576,
+			SubAppId:        537265576,
 			AppKey:          "0S200MNJT807V3GE",
-			SortVersionName: "9.1.15.20970",
+			SortVersionName: "9.1.35.22670",
 			BuildTime:       1713424357,
 			ApkSign:         []byte{0xA6, 0xB7, 0x45, 0xBF, 0x24, 0xA2, 0xC2, 0x77, 0x52, 0x77, 0x16, 0xF6, 0xF3, 0x6E, 0xB6, 0x8D},
 			SdkVersion:      "6.0.0.2560",
@@ -37,15 +37,15 @@ var (
 			MainSigMap: WLOGIN_A5 | WLOGIN_RESERVED | WLOGIN_STWEB | WLOGIN_A2 | WLOGIN_ST |
 				WLOGIN_LSKEY | WLOGIN_SKEY | WLOGIN_SIG64 | 1<<16 | WLOGIN_VKEY | WLOGIN_D2 |
 				WLOGIN_SID | WLOGIN_PSKEY | WLOGIN_AQSIG | WLOGIN_LHSIG | WLOGIN_PAYTOKEN, // 16724722
-			QUA:      "V1_AND_SQ_9.1.15_8028_YYB_D",
+			QUA:      "V1_AND_SQ_9.1.35_8708_YYB_D",
 			Protocol: AndroidPad,
 		},
 		AndroidPad: {
 			ApkId:           "com.tencent.mobileqq",
-			AppId:           537254188,
-			SubAppId:        537254188,
+			AppId:           537265615,
+			SubAppId:        537265615,
 			AppKey:          "0S200MNJT807V3GE",
-			SortVersionName: "9.1.15.20970",
+			SortVersionName: "9.1.35.22670",
 			BuildTime:       1713424357,
 			ApkSign:         []byte{0xA6, 0xB7, 0x45, 0xBF, 0x24, 0xA2, 0xC2, 0x77, 0x52, 0x77, 0x16, 0xF6, 0xF3, 0x6E, 0xB6, 0x8D},
 			SdkVersion:      "6.0.0.2560",
@@ -55,7 +55,7 @@ var (
 			MainSigMap: WLOGIN_A5 | WLOGIN_RESERVED | WLOGIN_STWEB | WLOGIN_A2 | WLOGIN_ST |
 				WLOGIN_LSKEY | WLOGIN_SKEY | WLOGIN_SIG64 | 1<<16 | WLOGIN_VKEY | WLOGIN_D2 |
 				WLOGIN_SID | WLOGIN_PSKEY | WLOGIN_AQSIG | WLOGIN_LHSIG | WLOGIN_PAYTOKEN, // 16724722
-			QUA:      "V1_AND_SQ_9.1.15_8028_YYB_D",
+			QUA:      "V1_AND_SQ_9.1.35_8708_YYB_D",
 			Protocol: AndroidPad,
 		},
 		AndroidWatch: {

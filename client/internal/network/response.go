@@ -63,7 +63,10 @@ func (t *Transport) readSSOFrame(resp *Response, payload []byte) error {
 
 	head := binary.NewReader(reader.ReadBytes(int(headLen) - 4))
 	resp.SequenceID = head.ReadInt32()
-	switch retCode := head.ReadInt32(); retCode {
+	retCode := head.ReadInt32()
+	resp.Message = head.ReadString()
+	resp.CommandName = head.ReadString()
+	switch retCode {
 	case 0:
 		// ok
 	case -10008:
@@ -71,10 +74,8 @@ func (t *Transport) readSSOFrame(resp *Response, payload []byte) error {
 	case -10201: //社交限制
 		return errors.WithStack(ErrChatBanned)
 	default:
-		return errors.Errorf("return code unsuccessful: %d", retCode)
+		return errors.Errorf("return code unsuccessful: %d, msg: %s, command: %s", retCode, resp.Message, resp.CommandName)
 	}
-	resp.Message = head.ReadString()
-	resp.CommandName = head.ReadString()
 	if resp.CommandName == "Heartbeat.Alive" || resp.CommandName == "StatSvc.QueryHB" {
 		return nil
 	}

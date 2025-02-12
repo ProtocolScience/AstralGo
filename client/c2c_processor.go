@@ -3,7 +3,9 @@ package client
 //go:generate go run github.com/ProtocolScience/AstralGo/internal/generator/c2c_switcher
 
 import (
+	"encoding/hex"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"time"
 
 	"github.com/pkg/errors"
@@ -216,10 +218,16 @@ func tempSessionDecoder(c *QQClient, pMsg *msg.Message, _ network.RequestParams)
 func troopAddMemberBroadcastDecoder(c *QQClient, pMsg *msg.Message, _ network.RequestParams) {
 	groupJoinLock.Lock()
 	defer groupJoinLock.Unlock()
-	group := c.FindGroupByUin(pMsg.Head.FromUin.Unwrap())
+	groupId := pMsg.Head.FromUin.Unwrap()
+	group := c.FindGroupByUin(groupId)
 	if pMsg.Head.AuthUin.Unwrap() == c.Uin {
-		if group == nil && c.ReloadGroupList() == nil {
-			c.GroupJoinEvent.dispatch(c, c.FindGroupByUin(pMsg.Head.FromUin.Unwrap()))
+		if group == nil {
+			groupInfo, err := c.ReloadGroup(groupId)
+			if err == nil {
+				c.GroupJoinEvent.dispatch(c, groupInfo)
+			} else {
+				log.Errorf("Cannot Found Joined GroupId: %v", groupId)
+			}
 		}
 	} else {
 		if group != nil && group.FindMember(pMsg.Head.AuthUin.Unwrap()) == nil {
@@ -267,7 +275,7 @@ func msgType0x211Decoder(c *QQClient, pMsg *msg.Message, info network.RequestPar
 	sub4 := msg.SubMsgType0X4Body{}
 	if err := proto.Unmarshal(pMsg.Body.MsgContent, &sub4); err != nil {
 		err = errors.Wrap(err, "unmarshal sub msg 0x4 error")
-		c.error("unmarshal sub msg 0x4 error: %v", err)
+		c.error("unmarshal sub msg 0x4 error: %v, hex: %s", err, hex.EncodeToString(pMsg.Body.MsgContent))
 		return
 	}
 	if sub4.NotOnlineFile != nil && sub4.NotOnlineFile.Subcmd.Unwrap() == 1 { // subcmd: 1 -> sendPacket, 2-> recv

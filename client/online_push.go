@@ -173,10 +173,6 @@ func msgType0x210SubD4Decoder(c *QQClient, protobuf []byte) error {
 	}
 	groupLeaveLock.Lock()
 	if g := c.FindGroup(d4.Uin); g != nil {
-		if err := c.ReloadGroupList(); err != nil {
-			groupLeaveLock.Unlock()
-			return err
-		}
 		c.GroupLeaveEvent.dispatch(c, &GroupLeaveEvent{Group: g})
 	}
 	groupLeaveLock.Unlock()

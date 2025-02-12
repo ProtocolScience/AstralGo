@@ -127,6 +127,9 @@ func (caches *Uid2UinListCaches) takeCurrentUnSaved() []Uid2UinListCache {
 }
 
 func (caches *Uid2UinListCaches) Add(uid string, uin int64) {
+	if uid == "" || uin <= 0 {
+		return
+	}
 	caches.mu.Lock()
 	defer caches.mu.Unlock()
 
