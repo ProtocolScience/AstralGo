@@ -36,8 +36,10 @@ type QQClient struct {
 	Uin         int64
 	PasswordMd5 [16]byte
 
-	stat Statistics
-	once sync.Once
+	stat       Statistics
+	once       sync.Once
+	InitWaitMu sync.Mutex
+	InitWait   *sync.Cond
 
 	// option
 	AllowSlider        bool
@@ -48,7 +50,6 @@ type QQClient struct {
 	Nickname      string
 	Age           uint16
 	Gender        uint16
-	InitWait      sync.WaitGroup
 	FriendList    []*FriendInfo
 	GroupList     []*GroupInfo
 	OnlineClients []*OtherClientInfo
@@ -210,6 +211,7 @@ func NewClientMd5(uin int64, passwordMd5 [16]byte) *QQClient {
 		highwaySession:    new(highway.Session),
 		firstLoginSucceed: false,
 	}
+	cli.InitWait = sync.NewCond(&cli.InitWaitMu)
 
 	cli.transport = &network.Transport{Sig: cli.sig}
 	cli.oicq = oicq.NewCodec(cli.Uin)
@@ -803,7 +805,7 @@ func (c *QQClient) GetRKey() (*nt.RKeyMap, error) {
 		for _, v := range c.RKey {
 			if v.ExpireTime < uint64(time.Now().Unix()) {
 				c.RKey = nil
-				log.Warn("rkey expired. refresh...")
+				//log.Warn("rkey expired. refresh...")
 				break
 			}
 		}

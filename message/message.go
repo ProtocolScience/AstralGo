@@ -693,7 +693,7 @@ func ParseMessageElems(elems []*msg.Elem) []IMessageElement {
 				businessType := elem.CommonElem.BusinessType.Unwrap()
 				extra := media.MsgInfo{}
 				err := proto.Unmarshal(elem.CommonElem.PbElem, &extra)
-				if err != nil {
+				if err != nil || len(extra.MsgInfoBody) == 0 {
 					continue
 				}
 				index := extra.MsgInfoBody[0].Index
