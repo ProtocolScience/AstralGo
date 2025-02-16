@@ -229,6 +229,17 @@ func NewClientMd5(uin int64, passwordMd5 [16]byte) *QQClient {
 	return cli
 }
 
+func (c *QQClient) WaitInit(wait bool) {
+	c.InitWaitMu.Lock()
+	if c.InitWait != nil {
+		if wait {
+			c.InitWait.Wait()
+		}
+		c.InitWait = nil
+	}
+	c.InitWaitMu.Unlock()
+}
+
 func (c *QQClient) version() *auth.AppVersion {
 	return c.transport.Version
 }

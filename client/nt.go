@@ -285,12 +285,7 @@ func decodeOlPushServicePacket(c *QQClient, pkt *network.Packet) (any, error) {
 		return nil, nil
 	}
 
-	c.InitWaitMu.Lock()
-	if c.InitWait != nil {
-		c.InitWait.Wait()
-		c.InitWait = nil
-	}
-	c.InitWaitMu.Unlock()
+	c.WaitInit(true)
 
 	if pkg.ResponseHead != nil {
 		utils.UIDGlobalCaches.Add(pkg.ResponseHead.FromUid.Unwrap(), int64(pkg.ResponseHead.FromUin))
