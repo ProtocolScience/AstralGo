@@ -234,6 +234,8 @@ func (c *QQClient) WaitInit(wait bool) {
 	if c.InitWait != nil {
 		if wait {
 			c.InitWait.Wait()
+		} else {
+			c.InitWait.Broadcast()
 		}
 		c.InitWait = nil
 	}
