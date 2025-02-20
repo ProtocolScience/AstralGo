@@ -427,9 +427,26 @@ func decodeOlPushServicePacket(c *QQClient, pkt *network.Packet) (any, error) {
 	case 0x210: // friend event, 528
 		subType := int64(pkg.ContentHead.SubType.Unwrap())
 		protobuf := pkg.Body.MsgContent
+
+		// 0xB3 好友验证消息，申请，同意都有
+		// 0xE2 new friend 主动加好友且对方同意
+		if subType == 0xE2 || subType == 0xB3 {
+			newFriend := event.NewFriend{}
+			if e := proto.Unmarshal(protobuf, &newFriend); e == nil { //NT格式解析
+				frd := &FriendInfo{
+					Uin:      c.GetUINByUID(newFriend.Info.Uid),
+					Nickname: newFriend.Info.NickName,
+				}
+				c.FriendList = append(c.FriendList, frd)
+				c.NewFriendEvent.dispatch(c, &NewFriendEvent{Friend: frd})
+				break
+			}
+		}
+
+		//旧格式解析
 		if decoder, ok := msg0x210Decoders[subType]; ok {
-			if err := decoder(c, protobuf); err != nil {
-				return nil, errors.Wrap(err, "decode online push 0x210 error")
+			if e := decoder(c, protobuf); e != nil {
+				return nil, errors.Wrap(e, "decode online push 0x210 error")
 			}
 			log.Debugf("0x210: subType: %d, passed", subType)
 		} else {

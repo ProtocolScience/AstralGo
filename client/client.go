@@ -453,7 +453,9 @@ func (c *QQClient) GetUINByUID(uid string) int64 {
 		if err != nil {
 			return 0
 		}
-		return rsp.(int64)
+		uin := rsp.(int64)
+		utils.UIDGlobalCaches.Add(uid, uin)
+		return uin
 	} else {
 		return query.UIN
 	}

@@ -1,0 +1,18 @@
+syntax = "proto3";
+option go_package = "github.com/ProtocolScience/AstralGo/client/pb/nt/event";
+
+message NewFriend {
+  uint32 Field1 = 1;
+  NewFriendInfo Info = 2;
+}
+
+message NewFriendInfo {
+  string Uid = 1;
+  uint32 Field2 = 2;
+  fixed32 Time = 3;
+  string Message = 4;
+  string NickName = 5;
+  uint32 Field6 = 6;
+  uint32 Field7 = 7;
+  string ToUid = 9;
+}
