@@ -699,15 +699,19 @@ func decodeOnlinePushTransPacket(c *QQClient, pkt *network.Packet) (any, error) 
 		target := int64(uint32(data.ReadInt32()))
 		typ := int32(data.ReadByte())
 		operator := int64(uint32(data.ReadInt32()))
-		groupId := info.FromUin.Unwrap()
-		group := c.FindGroupByUin(groupId)
+
 		var g *GroupInfo
-		if group == nil {
-			g, err = c.ReloadGroup(groupId)
-			if err != nil {
-				log.Errorf("Cannot Found OnlinePush GroupId: %v", groupId)
+		if typ == 0x02 || typ == 0x03 || typ == 0x82 || typ == 0x83 || typ == 0x01 || typ == 0x81 { //cases
+			groupId := info.FromUin.Unwrap()
+			group := c.FindGroupByUin(groupId)
+			if group == nil {
+				g, err = c.ReloadGroup(groupId)
+				if err != nil {
+					log.Errorf("Cannot Found OnlinePush GroupId: %v", groupId)
+				}
 			}
 		}
+
 		if g != nil {
 			groupLeaveLock.Lock()
 			defer groupLeaveLock.Unlock()
