@@ -166,7 +166,6 @@ var decoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"StatSvc.register":                             decodeClientRegisterResponse,
 	"StatSvc.ReqMSFOffline":                        decodeMSFOfflinePacket,
 	"MessageSvc.PushNotify":                        decodeSvcNotify,
-	"OnlinePush.PbPushTransMsg":                    decodeOnlinePushTransPacket,
 	"OnlinePush.SidTicketExpired":                  decodeSidExpiredPacket,
 	"ConfigPushSvc.PushReq":                        decodePushReqPacket,
 	"MessageSvc.PbGetMsg":                          decodeMessageSvcPacket,

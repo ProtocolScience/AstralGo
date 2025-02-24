@@ -680,7 +680,7 @@ func decodeOffPicUpResponse(_ *QQClient, pkt *network.Packet) (any, error) {
 	}, nil
 }
 
-// OnlinePush.PbPushTransMsg
+// OnlinePush.PbPushTransMsg (deprecated)
 func decodeOnlinePushTransPacket(c *QQClient, pkt *network.Packet) (any, error) {
 	info := msg.TransMsgInfo{}
 	err := proto.Unmarshal(pkt.Payload, &info)

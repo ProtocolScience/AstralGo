@@ -37,6 +37,7 @@ var NTDecoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"OidbSvcTrpcTcp.0x9082_2":                                ignoreDecoder, //群反应
 	"OidbSvcTrpcTcp.0x8fc_2":                                 ignoreDecoder, //群头衔
 	"OnlinePush.ReqPush":                                     ignoreDecoder, //decodeOnlinePushReqPacket与NT协议推送decodeOlPushServicePacket重复了
+	"OnlinePush.PbPushTransMsg":                              ignoreDecoder, //decodeOnlinePushTransPacket与NT协议推送decodeOlPushServicePacket重复了
 	"OidbSvcTrpcTcp.0xfd4_1":                                 decodeNewTechFriendGroupListResponse,
 	"OidbSvcTrpcTcp.0xfe7_3":                                 decodeNewTechGetTroopMemberListResponse,
 	"OidbSvcTrpcTcp.0xfe5_2":                                 decodeNewTechGetTroopListSimplyResponse,
@@ -521,8 +522,7 @@ func decodeOlPushServicePacket(c *QQClient, pkt *network.Packet) (any, error) {
 			log.Debugf("0x2DC: subType: %d, passed", subType)
 		case 0x0c: // 群内禁言
 			b := event.GroupMuteEvent{}
-			reader := binary.NewReader(pkg.Body.MsgContent)
-			err = proto.Unmarshal(reader.ReadAvailable(), &b)
+			err = proto.Unmarshal(pkg.Body.MsgContent, &b)
 			if err != nil {
 				return nil, err
 			}
@@ -533,6 +533,110 @@ func decodeOlPushServicePacket(c *QQClient, pkt *network.Packet) (any, error) {
 				Time:        b.Data.State.Duration,
 			})
 			log.Debugf("0x2DC: subType: %d, passed", subType)
+		case 0x21: // 入群事件 (see troopAddMemberBroadcastDecoder)
+			b := ntMsg.GroupChange{}
+			err = proto.Unmarshal(pkg.Body.MsgContent, &b)
+			groupJoinLock.Lock()
+			defer groupJoinLock.Unlock()
+			groupId := b.GroupUin
+			group := c.FindGroupByUin(int64(groupId))
+			uin := c.GetUINByUID(b.MemberUid)
+			if uin == c.Uin {
+				if group == nil {
+					groupInfo, e := c.ReloadGroup(int64(groupId))
+					if e == nil {
+						c.GroupJoinEvent.dispatch(c, groupInfo)
+					} else {
+						log.Errorf("Cannot Found Joined GroupId: %v", groupId)
+					}
+				}
+			} else {
+				if group != nil && group.FindMember(uin) == nil {
+					mem, e := c.GetMemberInfo(group.Code, uin)
+					if e == nil {
+						group.Update(func(info *GroupInfo) {
+							info.Members = append(info.Members, mem)
+							info.sort()
+						})
+						c.GroupMemberJoinEvent.dispatch(c, &MemberJoinGroupEvent{
+							Group:  group,
+							Member: mem,
+						})
+					} else {
+						c.debug("failed to fetch new member info: %v", err)
+					}
+				}
+			}
+		case 0x22: // 离群事件( TODO : 群解散等，都有，但是需要进一步发包 OidbSvcTrpcTcp.0x10c0_1 才能得知
+			groupLeaveLock.Lock()
+			defer groupLeaveLock.Unlock()
+			b := ntMsg.GroupChange{}
+			err = proto.Unmarshal(pkg.Body.MsgContent, &b)
+			if b.DecreaseType == 3 && b.Operator != nil {
+				Operator := ntMsg.OperatorInfo{}
+				err = proto.Unmarshal(b.Operator, &Operator)
+				if err != nil {
+					return nil, err
+				}
+				b.Operator = utils.S2B(Operator.OperatorField1.OperatorUid)
+			}
+			var g *GroupInfo
+			groupId := (int64)(b.GroupUin)
+			group := c.FindGroupByUin(groupId)
+			if group == nil {
+				g, err = c.ReloadGroup(groupId)
+				if err != nil {
+					log.Errorf("Cannot Found OnlinePush GroupId: %v, type: %v, body: %s", groupId, typ, hex.EncodeToString(pkt.Payload))
+				}
+			}
+			if g == nil {
+				break
+			}
+			uin := c.GetUINByUID(b.MemberUid)
+			var op *GroupMemberInfo
+			if len(b.Operator) > 0 {
+				op = g.FindMember(c.GetUINByUID(string(b.Operator)))
+			}
+			if uin == c.Uin {
+				c.GroupLeaveEvent.dispatch(c, &GroupLeaveEvent{
+					Group:    g,
+					Operator: op,
+				})
+			} else if m := g.FindMember(uin); m != nil {
+				g.removeMember(uin)
+				c.GroupMemberLeaveEvent.dispatch(c, &MemberLeaveGroupEvent{
+					Group:    g,
+					Member:   m,
+					Operator: op,
+				})
+			}
+		case 0x2C: // 群权限变动
+			pb := ntMsg.GroupAdmin{}
+			err = proto.Unmarshal(pkg.Body.MsgContent, &pb)
+			if err != nil {
+				return nil, err
+			}
+			var uin int64
+			newPermission := Member
+			if pb.Body.ExtraDisable != nil {
+				uin = c.GetUINByUID(pb.Body.ExtraDisable.AdminUid)
+			} else if pb.Body.ExtraEnable != nil {
+				newPermission = Administrator
+				uin = c.GetUINByUID(pb.Body.ExtraEnable.AdminUid)
+			}
+			if g := c.FindGroupByUin(int64(pb.GroupUin)); g != nil {
+				mem := g.FindMember(uin)
+				if mem.Permission != newPermission {
+					old := mem.Permission
+					mem.Permission = newPermission
+					c.GroupMemberPermissionChangedEvent.dispatch(c, &MemberPermissionChangedEvent{
+						Group:         g,
+						Member:        mem,
+						OldPermission: old,
+						NewPermission: newPermission,
+					})
+				}
+			}
 		default:
 			c.debug("unknown online push 0x2DC sub type 0x%v", strconv.FormatInt(int64(subType), 16))
 		}
