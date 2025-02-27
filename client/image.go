@@ -242,6 +242,7 @@ func (c *QQClient) uploadNewTechImage(target message.Source, img io.ReadSeeker) 
 		Domain:       access.MsgInfoBody[0].Picture.Domain,
 		BusinessType: business,
 		ImageType:    access.MsgInfoBody[0].Index.Info.Type.PicFormat,
+		ImageBizType: message.UnknownBizType,
 	}, nil
 }
 
@@ -476,6 +477,7 @@ func (c *QQClient) QueryImage(groupCode int64, friendUin int64, data *database.D
 			Path:         access.MsgInfoBody[0].Picture.UrlPath,
 			Domain:       access.MsgInfoBody[0].Picture.Domain,
 			BusinessType: business,
+			ImageBizType: message.ImageBizType(data.ImageBizType),
 		}, nil
 	default:
 		return nil, errors.New("image does not exist")

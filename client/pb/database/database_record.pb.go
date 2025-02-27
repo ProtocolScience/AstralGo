@@ -36,4 +36,5 @@ type DatabaseImage struct {
 	Height       uint32 `protobuf:"varint,7,opt"`
 	BusinessType uint32 `protobuf:"varint,8,opt"`
 	ImageType    uint32 `protobuf:"varint,11,opt"`
+	ImageBizType uint32 `protobuf:"varint,12,opt"`
 }

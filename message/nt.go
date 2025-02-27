@@ -37,6 +37,7 @@ type NewTechImageElement struct {
 	Domain       string
 	BusinessType uint32
 	ImageType    uint32 //1001,2001=png 1000=jpg 2000,3,4=gif 1005=bmp 1002=webp 2001=png
+	ImageBizType ImageBizType
 
 	LegacyGroup  *GroupImageElement
 	LegacyGuild  *GuildImageElement

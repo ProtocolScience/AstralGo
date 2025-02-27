@@ -31,4 +31,5 @@ message DatabaseImage{
   uint32 height = 7;
   uint32 BusinessType = 8;
   uint32 imageType = 11;
+  uint32 imageBizType = 12;
 }

@@ -711,6 +711,7 @@ func ParseMessageElems(elems []*msg.Elem) []IMessageElement {
 							Width:        index.Info.Width,
 							Height:       index.Info.Height,
 							BusinessType: uint32(businessType),
+							ImageBizType: ImageBizType(extra.ExtBizInfo.Pic.BizType),
 						})
 					}
 				case nt.BusinessGroupAudio, nt.BusinessFriendAudio:
