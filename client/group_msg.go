@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0x9082"
-	log "github.com/sirupsen/logrus"
 	"math"
 	"math/rand"
 	"strconv"
@@ -410,26 +409,20 @@ func (c *QQClient) parseGroupMessage(m *msg.Message) *message.GroupMessage {
 			IsFriend: false,
 		}
 	} else {
+		//我认为gocq不应该多管闲事
+		//出现曾经不存在的成员是否应该当成入群事件，应该由应用端自行判断
+		//不应该自己臆造事件
 		mem := group.FindMember(m.Head.FromUin.Unwrap())
 		if mem == nil {
-			log.Debugf("收到群消息，且该群成员不存在，在更新该群成员数据时，被动式触发入群事件，GroupId：%v, Uin：%v", group.Code, m.Head.FromUin.Unwrap())
-			group.Update(func(_ *GroupInfo) {
-				if mem = group.FindMemberWithoutLock(m.Head.FromUin.Unwrap()); mem != nil {
-					return
-				}
-				info, _ := c.GetMemberInfo(group.Code, m.Head.FromUin.Unwrap())
-				if info == nil {
-					return
-				}
+			info, e := c.GetMemberInfo(group.Code, m.Head.FromUin.Unwrap())
+			if e == nil {
 				mem = info
-				group.Members = append(group.Members, mem)
-				group.sort()
-				go c.GroupMemberJoinEvent.dispatch(c, &MemberJoinGroupEvent{
-					Group:  group,
-					Member: info,
+				group.Update(func(info *GroupInfo) {
+					info.Members = append(info.Members, mem)
+					info.sort()
 				})
-			})
-			if mem == nil {
+			} else {
+				c.debug("failed to fetch new member info: %v", e)
 				return nil
 			}
 		}
