@@ -5,7 +5,6 @@ package client
 import (
 	"encoding/hex"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"time"
 
 	"github.com/pkg/errors"
@@ -215,6 +214,7 @@ func tempSessionDecoder(c *QQClient, pMsg *msg.Message, _ network.RequestParams)
 	}
 }
 
+/*
 func troopAddMemberBroadcastDecoder(c *QQClient, pMsg *msg.Message, _ network.RequestParams) {
 	groupJoinLock.Lock()
 	defer groupJoinLock.Unlock()
@@ -246,7 +246,7 @@ func troopAddMemberBroadcastDecoder(c *QQClient, pMsg *msg.Message, _ network.Re
 			})
 		}
 	}
-}
+}*/
 
 func systemMessageDecoder(c *QQClient, _ *msg.Message, _ network.RequestParams) {
 	_, pkt := c.buildSystemMsgNewFriendPacket()

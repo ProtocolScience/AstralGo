@@ -24,8 +24,6 @@ func peekC2CDecoder(msgType int32) (decoder func(*QQClient, *msg.Message, networ
 		return privateMessageDecoder, privateMsgDecoders
 	case 31:
 		return privateMessageDecoder, privateMsgDecoders
-	case 33:
-		return troopAddMemberBroadcastDecoder, otherDecoders
 	case 35:
 		return troopSystemMessageDecoder, troopSystemMsgDecoders
 	case 36:

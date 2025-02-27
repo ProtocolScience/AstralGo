@@ -1,27 +1,16 @@
 package client
 
 import (
-	"fmt"
-	"strconv"
-	"time"
-
 	"github.com/pkg/errors"
+	"strconv"
 
-	"github.com/ProtocolScience/AstralGo/binary"
-	"github.com/ProtocolScience/AstralGo/binary/jce"
-	"github.com/ProtocolScience/AstralGo/client/internal/network"
 	"github.com/ProtocolScience/AstralGo/client/pb"
 	"github.com/ProtocolScience/AstralGo/client/pb/msgtype0x210"
 	"github.com/ProtocolScience/AstralGo/client/pb/notify"
 	"github.com/ProtocolScience/AstralGo/internal/proto"
 )
 
-var msg0x210Decoders = map[int64]func(*QQClient, []byte) error{
-	0x8A: msgType0x210Sub8ADecoder, 0x8B: msgType0x210Sub8ADecoder, 0xB3: msgType0x210SubB3Decoder,
-	0xD4: msgType0x210SubD4Decoder, 0x27: msgType0x210Sub27Decoder, 0x122: msgType0x210Sub122Decoder,
-	0x123: msgType0x210Sub122Decoder, 0x44: msgType0x210Sub44Decoder,
-}
-
+/*
 // OnlinePush.ReqPush
 func decodeOnlinePushReqPacket(c *QQClient, pkt *network.Packet) (any, error) {
 	request := &jce.RequestPacket{}
@@ -133,7 +122,7 @@ func decodeOnlinePushReqPacket(c *QQClient, pkt *network.Packet) (any, error) {
 		}
 	}
 	return nil, nil
-}
+}*/
 
 func msgType0x210Sub8ADecoder(c *QQClient, protobuf []byte) error {
 	s8a := pb.Sub8A{}
@@ -238,45 +227,5 @@ func msgType0x210Sub122Decoder(c *QQClient, protobuf []byte) error {
 		Sender:   sender,
 		Receiver: receiver,
 	})
-	return nil
-}
-
-func msgType0x210Sub44Decoder(c *QQClient, protobuf []byte) error {
-	s44 := pb.Sub44{}
-	if err := proto.Unmarshal(protobuf, &s44); err != nil {
-		return errors.Wrap(err, "failed to unmarshal protobuf message")
-	}
-	if s44.GroupSyncMsg == nil {
-		return nil
-	}
-	groupJoinLock.Lock()
-	defer groupJoinLock.Unlock()
-	if s44.GroupSyncMsg.GrpCode == 0 { // member sync
-		return errors.New("invalid group code")
-	}
-	c.debug("syncing members.")
-	if group := c.FindGroup(s44.GroupSyncMsg.GrpCode); group != nil {
-		group.lock.Lock()
-		defer group.lock.Unlock()
-
-		var lastJoinTime int64 = 0
-		for _, m := range group.Members {
-			if lastJoinTime < m.JoinTime {
-				lastJoinTime = m.JoinTime
-			}
-		}
-
-		if newMem, err := c.GetGroupMembers(group); err == nil {
-			group.Members = newMem
-			for _, m := range newMem {
-				if lastJoinTime < m.JoinTime {
-					c.GroupMemberJoinEvent.dispatch(c, &MemberJoinGroupEvent{
-						Group:  group,
-						Member: m,
-					})
-				}
-			}
-		}
-	}
 	return nil
 }

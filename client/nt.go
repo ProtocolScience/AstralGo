@@ -22,6 +22,12 @@ import (
 	"strconv"
 )
 
+var msg0x210Decoders = map[int64]func(*QQClient, []byte) error{
+	0x8A: msgType0x210Sub8ADecoder, 0x8B: msgType0x210Sub8ADecoder, 0xB3: msgType0x210SubB3Decoder,
+	0xD4: msgType0x210SubD4Decoder, 0x27: msgType0x210Sub27Decoder, 0x122: msgType0x210Sub122Decoder,
+	0x123: msgType0x210Sub122Decoder,
+}
+
 var NTDecoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"HttpConn.0x6ff_501": decodeConnKeyResponse,
 	"trpc.msg.register_proxy.RegisterProxy.SsoInfoSync":      decodeClientRegisterResponse,
@@ -552,6 +558,7 @@ func decodeOlPushServicePacket(c *QQClient, pkt *network.Packet) (any, error) {
 				}
 			} else {
 				if group != nil && group.FindMember(uin) == nil {
+					log.Debugf("收到入群事件，且群成员不存在，在更新该群成员数据时，主动式触发入群事件，GroupId：%v, Uin：%v", group.Code, uin)
 					mem, e := c.GetMemberInfo(group.Code, uin)
 					if e == nil {
 						group.Update(func(info *GroupInfo) {

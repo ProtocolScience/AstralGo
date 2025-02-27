@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0x9082"
+	log "github.com/sirupsen/logrus"
 	"math"
 	"math/rand"
 	"strconv"
@@ -411,6 +412,7 @@ func (c *QQClient) parseGroupMessage(m *msg.Message) *message.GroupMessage {
 	} else {
 		mem := group.FindMember(m.Head.FromUin.Unwrap())
 		if mem == nil {
+			log.Debugf("收到群消息，且该群成员不存在，在更新该群成员数据时，被动式触发入群事件，GroupId：%v, Uin：%v", group.Code, m.Head.FromUin.Unwrap())
 			group.Update(func(_ *GroupInfo) {
 				if mem = group.FindMemberWithoutLock(m.Head.FromUin.Unwrap()); mem != nil {
 					return
