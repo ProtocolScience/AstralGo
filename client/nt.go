@@ -10,6 +10,7 @@ import (
 	"github.com/ProtocolScience/AstralGo/client/pb/notify"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/event"
 	ntMsg "github.com/ProtocolScience/AstralGo/client/pb/nt/message"
+	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0x1250_0"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFD4_1"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE1_2"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE5_2"
@@ -57,6 +58,7 @@ var NTDecoders = map[string]func(*QQClient, *network.Packet) (any, error){
 	"OidbSvcTrpcTcp.0x126e_100":                              decodeNewTechMediaResponse,
 	"OidbSvcTrpcTcp.0x126e_200":                              decodeNewTechMediaResponse,
 	"OidbSvcTrpcTcp.0x9067_202":                              decodeNewTechMediaResponse,
+	"OidbSvcTrpcTcp.0x1250_0":                                decodeNewTechFriendRelationResponse,
 }
 
 func init() {
@@ -147,6 +149,41 @@ func decodeNewTechGetTroopListSimplyResponse(c *QQClient, pkt *network.Packet) (
 	}
 	return l, nil
 }
+
+func decodeNewTechFriendRelationResponse(_ *QQClient, pkt *network.Packet) (any, error) {
+	rsp := oidbSvcTrpcTcp0x1250_0.Response{}
+	err := unpackOIDBPackage(pkt.Payload, &rsp)
+	if err != nil {
+		return nil, err
+	}
+	groupList := make([]*CommonGroupInfo, 0, len(rsp.CommonGroupInfo.CommonGroupInfo))
+	for _, g := range rsp.CommonGroupInfo.CommonGroupInfo {
+		groupList = append(groupList, &CommonGroupInfo{
+			GroupUin:  g.GroupUin,
+			GroupId:   g.GroupId,
+			GroupName: g.GroupName,
+			Timestamp: g.Timestamp,
+		})
+	}
+	specialGroup := &CommonGroupInfo{
+		GroupUin:  rsp.CommonGroupInfo.SpecialGroupInfo.GroupUin,
+		GroupId:   rsp.CommonGroupInfo.SpecialGroupInfo.GroupId,
+		GroupName: rsp.CommonGroupInfo.SpecialGroupInfo.GroupName,
+		Timestamp: rsp.CommonGroupInfo.SpecialGroupInfo.Timestamp,
+	}
+
+	return &FriendRelation{
+		FriendAddInfo: &FriendAddInfo{
+			Reason: rsp.FriendAddInfo.Reason,
+		},
+		CommonGroupInfo: &CommonGroupInfoList{
+			CommonGroupInfo:  groupList,
+			SpecialGroupInfo: specialGroup,
+			Reason:           rsp.CommonGroupInfo.Reason,
+		},
+	}, nil
+}
+
 func decodeNewTechGetTroopMemberListResponse(_ *QQClient, pkt *network.Packet) (any, error) {
 	rsp := oidbSvcTrpcTcp0xFE7_3.Response{}
 	err := unpackOIDBPackage(pkt.Payload, &rsp)

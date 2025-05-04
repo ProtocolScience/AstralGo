@@ -7,6 +7,7 @@ import (
 	"github.com/ProtocolScience/AstralGo/client/internal/auth"
 	"github.com/ProtocolScience/AstralGo/client/pb/cmd0x6ff"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/media"
+	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0x1250_0"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0x8FC_2"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFD4_1"
 	"github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0xFE1_2"
@@ -1442,6 +1443,27 @@ func (c *QQClient) buildAppInfoRequestPacket(id string) (uint16, []byte) {
 	return seq, packet
 }
 */
+
+func (c *QQClient) buildFriendRelationPacket(uin int64) (uint16, []byte) {
+
+	request := &oidbSvcTrpcTcp0x1250_0.Request{
+		TargetUin: uin,
+		Field3:    1,
+		Field6:    1,
+		RelationInfo: &oidbSvcTrpcTcp0x1250_0.RelationInfo{
+			UinInfo: &oidbSvcTrpcTcp0x1250_0.UinInfo{
+				SelfUin:   c.Uin,
+				TargetUin: uin,
+			},
+			Field5: 3436,
+		},
+	}
+
+	b, _ := proto.Marshal(request)
+	payload := c.packOIDBPackage(0x1250, 0, b)
+	return c.uniPacket("OidbSvcTrpcTcp.0x1250_0", payload)
+
+}
 
 func (c *QQClient) buildWordSegmentationPacket(data []byte) (uint16, []byte) {
 	payload := c.packOIDBPackageProto(3449, 1, &oidb.D79ReqBody{

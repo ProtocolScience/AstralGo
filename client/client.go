@@ -678,6 +678,17 @@ func (c *QQClient) getGroupMembers(group *GroupInfo, interner *intern.StringInte
 	}
 }*/
 
+func (c *QQClient) GetFriendRelation(target int64) (*FriendRelation, error) {
+	rsp, err := c.sendAndWait(c.buildFriendRelationPacket(target))
+	if err != nil {
+		return nil, err
+	}
+	if rsp == nil {
+		return nil, errors.New("friend relation is unavailable: rsp is nil")
+	}
+	return rsp.(*FriendRelation), nil
+}
+
 func (c *QQClient) getGroupMembers(group *GroupInfo, interner *intern.StringInterner) ([]*GroupMemberInfo, error) {
 	var nextUin int64
 	var list []*GroupMemberInfo
