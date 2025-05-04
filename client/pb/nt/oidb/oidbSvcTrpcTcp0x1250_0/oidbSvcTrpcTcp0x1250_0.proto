@@ -1,0 +1,43 @@
+syntax = "proto3";
+option go_package = "github.com/ProtocolScience/AstralGo/client/pb/nt/oidb/oidbSvcTrpcTcp0x1250_0";
+
+message Request {
+  int64 targetUin = 2;
+  int32 field3 = 4; // 1
+  RelationInfo relationInfo = 5;
+  int32 field6 = 6; // 1
+}
+
+message RelationInfo {
+  UinInfo uinInfo = 3;
+  int32 field5 = 5; // 3436
+}
+
+message UinInfo {
+  int64 selfUin = 1;
+  int64 targetUin = 2;
+}
+
+message Response {
+  int64 selfUin = 1;
+  int64 targetUin = 2;
+  FriendAddInfo friendAddInfo = 11;
+  CommonGroupInfoList commonGroupInfo = 12;
+}
+
+message FriendAddInfo {
+  string reason = 4;
+}
+
+message CommonGroupInfoList{
+    repeated CommonGroupInfo commonGroupInfo = 1;
+    CommonGroupInfo specialGroupInfo = 2;
+    string reason = 3;
+}
+
+message CommonGroupInfo{
+  int64 groupUin = 1;
+  int64 groupId = 2;
+  string groupName = 3;
+  int64 timestamp = 4;
+}
